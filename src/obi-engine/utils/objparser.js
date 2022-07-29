@@ -1,10 +1,6 @@
 "use strict";
 
-import Mesh from "../core/mesh";
-import MeshCache from "../core/globals";
-
 export default class OBJLoader{
-
 
     static loadMeshAJAX(path, onSucces, onError){
         var xhr = new XMLHttpRequest(),
