@@ -6,7 +6,7 @@ export default class Pipeline{
 
     vertexUniformGroup: GPUBindGroup
     mvpBuffer: GPUBuffer
-    invTansBuffer: GPUBuffer
+    invTransBuffer: GPUBuffer
     camPosBuffer: GPUBuffer
 
     static async createBasicPipeline(name: string, vertex: string, fragment: string) {
@@ -82,10 +82,10 @@ export default class Pipeline{
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
-        newPipeline.invTansBuffer = OBI.device.createBuffer({
+        newPipeline.invTransBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer Inverse Transpose 3x3 matrix',
-            //TODO: FIXME: WHY THE F** DO I HAVE TO PUT 3*4 FOR MINIMUM BINDING SIZE?!
-            size: 3 * 4 * 4, // 3 x 3 x float32
+            //TODO: WGSL cant do a 3 component vector as a uniform as part of a matrix (only single) in matrices there has to be 16 bytes per entry
+            size: 4 * 4 * 4, // 3 x 3 x float32
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
@@ -109,7 +109,7 @@ export default class Pipeline{
                 {
                     binding: 1,
                     resource: {
-                        buffer: newPipeline.invTansBuffer
+                        buffer: newPipeline.invTransBuffer
                     },
                 },
                 {

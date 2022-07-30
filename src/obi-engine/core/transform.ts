@@ -6,12 +6,6 @@ export default class Transform{
   scale: vec3
   modelMatrix: mat4
 
-  /**
-  * Creates an instance of Transform.
-  * @param {Vector3} position the center of the model in world space.
-  * @param {Vector3} rotation the rotation of the model (in degrees: x,y,z -> pitch,yaw,roll).
-  * @param {Vector3} scale width, height and depth of the model (base is 1/1/1).
-  */
   constructor(position?: vec3, rotation?: quat, scale?: vec3){
 
     if(position){ this.position = vec3.clone(position)}

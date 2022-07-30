@@ -368,7 +368,7 @@ export default class Primitives{
     }
 
 // A XZ plane with variable resolution (vertex count), default is 10x10
-    static getPlaneMesh(gl:WebGL2RenderingContext, xRes=10, zRes=10): Mesh{
+    static getPlaneMesh(xRes=10, zRes=10): Mesh{
         let meshName = "plane" + xRes + "x" + zRes;
        if(Mesh.cache.has(meshName)){
             return Mesh.cache.get(meshName);
@@ -428,7 +428,7 @@ export default class Primitives{
 
 // A UV sphere (triangles are arranged in squares and streched around the sphere body)
 // default sphere vertex count is 20 x 20
-    static getSphereMesh(gl:WebGL2RenderingContext, sectorCount = 20, stackCount = 20): Mesh{
+    static getSphereMesh(sectorCount = 20, stackCount = 20): Mesh{
        if(Mesh.cache.has("sphere")){
             return Mesh.cache.get("sphere");
         }
@@ -521,7 +521,7 @@ export default class Primitives{
     }
 
 // a cynlinder with a variable amount of sectors
-    static getCylinderMesh(gl:WebGL2RenderingContext, sectorCount = 20): Mesh{
+    static getCylinderMesh(sectorCount = 20): Mesh{
        if(Mesh.cache.has("cylinder")){
             return Mesh.cache.get("cylinder");
         }

@@ -25,7 +25,7 @@ async function run(){
 
     const pipeline = await Pipeline.createBasicPipeline("Test", vertexShaderCode, fragmentShaderCode)
 
-    const mat = new Material(pipeline, vec4.fromValues(1,1,0,0))
+    const mat = new Material(pipeline, vec4.fromValues(1,1,1,0))
     mat.albedoMap = await Texture.loadAsync('mainTexture', "./assets/texture.png")
 
     mat.updateBindGroup() // This feels like a really crappy solution
@@ -36,13 +36,18 @@ async function run(){
 
     const controller = new OrbiterCameraController(OBI.context.canvas as HTMLCanvasElement, scene.mainCamera)
 
-    const cube = new Model(Primitives.getCubeMesh(), mat)
+    const cube = new Model(Primitives.getCylinderMesh(), mat)
     scene.addModel(cube)
+
+    //TODO: Fix second model not working
+    //scene.addModel(new Model(Primitives.getCubeMesh(), mat, vec3.fromValues(3,0,0)))
+
+    quat.fromEuler(scene.dirLight.transform.rotation, -45, 90, 0)
 
     function frame(){
         Input.update()
-        //controller.update()
-        cube.transform.position[2] = -5
+        controller.update()
+        //cube.transform.position[2] = -5
         quat.fromEuler(cube.transform.rotation, performance.now() / 50, performance.now() / 50, 0)
         //console.log(scene.mainCamera.getPosition())
         scene.draw()

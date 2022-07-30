@@ -3,7 +3,7 @@ import Material from "./material"
 import Mesh from "./mesh"
 import Transform from "./transform"
 
-export default class ModelTransform{
+export default class Model{
     mesh: Mesh
     material: Material
     transform: Transform
@@ -27,7 +27,7 @@ export default class ModelTransform{
     //...................................................
 	//Methods
     //...................................................
-    update():ModelTransform{
+    update():Model{
         this.transform.update()
         return this
     }
