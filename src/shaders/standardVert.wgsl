@@ -20,7 +20,7 @@ fn main(
     @location(3) uv : vec2<f32>
     ) -> VertexOutput {
     var out: VertexOutput;
-
+    
     var M = mvpArray[0];
     var V = mvpArray[1];
     var P = mvpArray[2];
@@ -41,8 +41,6 @@ fn main(
     out.n = n;
 
     out.camPos = camPos;
-
-    out.position = V * M * position;
 
     return out;
 }

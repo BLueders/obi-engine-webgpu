@@ -1,5 +1,5 @@
-import vertexShaderCode from "./shaders/textureVert.wgsl"
-import fragmentShaderCode from "./shaders/textureFrag.wgsl"
+import vertexShaderCode from "./shaders/standardVert.wgsl"
+import fragmentShaderCode from "./shaders/standardFrag.wgsl"
 import * as cube from "./obi-engine/utils/cube"
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix";
 import OBI from "./obi-engine/core/obi";
@@ -42,8 +42,8 @@ async function run(){
     function frame(){
         Input.update()
         //controller.update()
-        cube.transform.position[2] = 1
-        quat.fromEuler(cube.transform.rotation, 0, performance.now() / 200, 0)
+        cube.transform.position[2] = -5
+        quat.fromEuler(cube.transform.rotation, performance.now() / 50, performance.now() / 50, 0)
         //console.log(scene.mainCamera.getPosition())
         scene.draw()
         requestAnimationFrame(frame)

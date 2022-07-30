@@ -81,13 +81,12 @@ export class Camera {
     */
     perspProjectionMatrix(fov: number, near: number, far: number, aspectRatio: number){
         // use new values if supplied, or old values if already present, or default values
-        this.aspectRatio = aspectRatio || OBI.canvasSize.width / OBI.canvasSize.height;
-        this.fov = fov || this.fov || 45.0;
-        this.near = near || this.near || 0.1;
-        this.far = far || this.far || 1000.0;
-        this.aspectRatio = aspectRatio || this.aspectRatio || 1920.0/1080.0;
+        this.fov = fov; 
+        this.near = near;
+        this.far = far; 
+        this.aspectRatio = aspectRatio;
 
-        this.projectionMatrix = mat4.perspective(this.projectionMatrix, this.fov,  this.aspectRatio, this.near, this.far);
+        this.projectionMatrix = mat4.perspective(this.projectionMatrix, this.fov / 180 * Math.PI,  this.aspectRatio, this.near, this.far);
         return this.projectionMatrix;
     }
 

@@ -19,7 +19,8 @@ export default class Pipeline{
                 }),
                 entryPoint: 'main',
                 buffers: [{
-                    arrayStride: 11 * 4, // 3 position 2 uv,
+                    arrayStride: 11 * 4, // 3 position
+                    // arrayStride: 11 * 4, // 3 position 2 uv,
                     attributes: [
                         {
                             // position

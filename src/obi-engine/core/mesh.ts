@@ -35,16 +35,17 @@ export default class Mesh {
         this.texcoordData = texcoordData
         this.indexData = indexData
         let tangentData = undefined
-        if (normalData) {
+        if (normalData && texcoordData) {
             tangentData = this.createTangents(indexData, positionData, normalData, texcoordData)
             this.tangentData = tangentData
         }
         // TODO: Maybe make it more efficient using better layout like in the Example of: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
         // for now everything is a float 32 number
 
-        let normalOffset = positionData.length
-        let tangentOffset = normalOffset + (normalData ? normalData.length : 0)
-        let texcoordOffset = tangentOffset + (normalData ? normalData.length : 0)
+        let stride = 3 // positiondata
+        stride += normalData ? 3 : 0
+        stride += tangentData ? 3 : 0
+        stride += texcoordData ? 2 : 0
 
         // create float32 vertex data array
         let vertexBufferSize: number = positionData.length
@@ -53,20 +54,46 @@ export default class Mesh {
         vertexBufferSize += texcoordData ? texcoordData.length : 0
         let vertexDataF32Array = new Float32Array(vertexBufferSize)
 
-        for (let i = 0; i < positionData.length; i++) {
-            vertexDataF32Array[i] = positionData[i];
-        }
-        for (let i = 0; normalData && i < normalData.length; i++) {
-            vertexDataF32Array[i + normalOffset] = normalData[i];
-        }
-        for (let i = 0; tangentData && i < tangentData.length; i++) {
-            vertexDataF32Array[i + tangentOffset] = tangentData[i];
-        }
-        for (let i = 0; texcoordData && i < texcoordData.length; i++) {
-            vertexDataF32Array[i + texcoordOffset] = texcoordData[i];
+        for (let i = 0; i < indexData.length; i++) {
+            let v = i * stride;
+
+            const o0 = i * 3
+            const o1 = o0 + 1
+            const o2 = o0 + 2
+
+            vertexDataF32Array[v] = positionData[o0]
+            v++
+            vertexDataF32Array[v] = positionData[o1]
+            v++
+            vertexDataF32Array[v] = positionData[o2]
+            v++
+
+            if(normalData){
+                vertexDataF32Array[v] = normalData[o0]
+                v++
+                vertexDataF32Array[v] = normalData[o1]
+                v++
+                vertexDataF32Array[v] = normalData[o2]
+                v++
+            }
+            
+            if(tangentData){
+                vertexDataF32Array[v] = tangentData[o0]
+                v++
+                vertexDataF32Array[v] = tangentData[o1]
+                v++
+                vertexDataF32Array[v] = tangentData[o2]
+                v++
+            }
+
+            if(texcoordData){
+                vertexDataF32Array[v] = texcoordData[i * 2]
+                v++
+                vertexDataF32Array[v] = texcoordData[i * 2 + 1]
+            }
         }
 
-        this.vertexCount = positionData.length / 3			//How many vertices in the array
+        this.vertexCount = indexData.length //How many vertices in the array
 
         this.vertexBuffer = OBI.device.createBuffer({
                 label: 'GPUBuffer store vertex',
@@ -153,13 +180,6 @@ export default class Mesh {
             tangentData[indexData[i + 2] * 3 + 1] = tangent[1]
             tangentData[indexData[i + 2] * 3 + 2] = tangent[2]
         }
-
-        // // TODO: UFF SO UNGLY PLEASE FIX, The tangent calculation leaves NaN for indices not used. For some primitives I screwed up aparently => Sphere does not have index 0?
-        // for (let index = 0 index < tangentData.length index++) {
-        //   if (tangentData[index] === NaN || tangentData[index] === undefined) {
-        //     tangentData[index] = 0.0
-        //   }
-        // }
 
         return tangentData
     }
