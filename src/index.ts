@@ -29,12 +29,16 @@ async function run(){
 
     const controller = new OrbiterCameraController(OBI.context.canvas as HTMLCanvasElement, scene.mainCamera)
 
-    for(let i = 0; i < 40; i++){
-        for(let j = 0; j < 40; j++){
+    const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
+
+    for(let i = 0; i < 30; i++){
+        for(let j = 0; j < 30; j++){
             const mat = new Material(vec4.fromValues(Math.random(),Math.random(),Math.random(),1))
             mat.albedoMap = albedoMap
             mat.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
-            scene.addModel(new Model(Primitives.getSphereMesh(), mat, vec3.fromValues(i * 2 - 40,0,j * 2 - 40)))
+
+            //mat.lighting = Lighting.BlinnPhong
+            scene.addModel(new Model(meshes[Math.floor(Math.random() *4)], mat, vec3.fromValues(i * 2 - 30,0,j * 2 - 30)))
         }
     }
 
@@ -43,7 +47,7 @@ async function run(){
     const LIGHTCOUNT = 10
     const lights:Light[] = []
     for(let i = 0; i< LIGHTCOUNT; i++){
-        const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 20, 2, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 20))
+        const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 15, 2, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 15))
         pointLight.range = 15
         pointLight.intensity = 3
         pointLight.color = vec3.fromValues(Math.random(),Math.random(),Math.random())

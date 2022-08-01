@@ -1,6 +1,7 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix"
 import { Camera } from "./camera"
 import { Light, LightType } from "./light"
+import Mesh from "./mesh"
 import Model from "./model"
 import OBI from "./obi"
 import { Lighting } from "./pipeline-library"
@@ -8,8 +9,7 @@ import { Lighting } from "./pipeline-library"
 export default class Scene{
 
     mainCamera: Camera
-    pipelines: Map<GPURenderPipeline, Model[]>
-
+    pipelines: Map<GPURenderPipeline, Map<Mesh, Model[]>>
     ambientLight: vec4
     dirLight: Light
     pointlights: Light[]
@@ -20,7 +20,7 @@ export default class Scene{
     
     constructor(){
         this.mainCamera = new Camera()
-        this.pipelines = new Map<GPURenderPipeline, Model[]>()
+        this.pipelines = new Map<GPURenderPipeline, Map<Mesh, Model[]>>()
 
         this.matrixGroups = new Map<Model, GPUBindGroup>()
 
@@ -54,11 +54,17 @@ export default class Scene{
 
     addModel(model:Model){
         if(!this.pipelines.has(model.renderer.pipeline)){
-            this.pipelines.set(model.renderer.pipeline, [model])
-        } else {
-            this.pipelines.get(model.renderer.pipeline).push(model)
+            this.pipelines.set(model.renderer.pipeline, new Map<Mesh,Model[]>())
+        } 
+        var meshMap = this.pipelines.get(model.renderer.pipeline)
+
+        if(!meshMap.has(model.mesh)){
+            meshMap.set(model.mesh, [])
         }
-        this.createLightBindGroup(model)
+        meshMap.get(model.mesh).push(model)
+
+        if(model.material.lighting === Lighting.BlinnPhong)
+            this.createLightBindGroup(model)
         this.createMatrixBindGroud(model)
         return model
     }
@@ -67,7 +73,6 @@ export default class Scene{
 
         this.updateAmbientDirLights()
 
-        const commandEncoder = OBI.device.createCommandEncoder()
         const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
                 {
@@ -85,46 +90,48 @@ export default class Scene{
             }
         }
 
-        this.pipelines.forEach((models, pipeline) => {
+        const commandEncoder = OBI.device.createCommandEncoder()
+        const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
+        this.pipelines.forEach((meshes, pipeline) => {
 
-            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
             passEncoder.setPipeline(pipeline)
 
             OBI.device.queue.writeBuffer(this.mainCamera.viewBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
             OBI.device.queue.writeBuffer(this.mainCamera.projBuffer, 0, this.mainCamera.projectionMatrix as Float32Array)
 
-            models.forEach(model => {
+            meshes.forEach((models, mesh) => {
 
-                model.update()
                 // set vertex
-                passEncoder.setVertexBuffer(0, model.mesh.vertexBuffer)
-                passEncoder.setIndexBuffer(model.mesh.indexBuffer, "uint16")
-              
-                OBI.device.queue.writeBuffer(model.renderer.modelMatrixBuffer, 0, model.transform.modelMatrix as Float32Array)
-
-                let invTrans3x3: mat3 = mat3.create();
-                mat3.normalFromMat4(invTrans3x3, model.transform.modelMatrix);
+                passEncoder.setVertexBuffer(0, mesh.vertexBuffer)
+                passEncoder.setIndexBuffer(mesh.indexBuffer, "uint16")
                 
-                OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, invTrans3x3 as Float32Array)
+                models.forEach(model => {
 
-                // set uniformGroup for vertex shader
-                passEncoder.setBindGroup(0, this.matrixGroups.get(model))
-                // set textureGroup
-                passEncoder.setBindGroup(1, model.renderer.materialBindGroup)
-                // set lightGroup
-                if(model.material.lighting == Lighting.BlinnPhong){
-                    this.updatePointLightBuffer(model)
-                    passEncoder.setBindGroup(2, this.lightGroups.get(model))
-                }
+                    model.update()
+                    OBI.device.queue.writeBuffer(model.renderer.modelMatrixBuffer, 0, model.transform.modelMatrix as Float32Array)
 
-                // draw vertex count of cube
-                passEncoder.drawIndexed(model.mesh.vertexCount)
-                // webgpu run in a separate process, all the commands will be executed after submit
+                    let invTrans3x3: mat3 = mat3.create();
+                    mat3.normalFromMat4(invTrans3x3, model.transform.modelMatrix);
+                    
+                    OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, invTrans3x3 as Float32Array)
+
+                    // set uniformGroup for vertex shader
+                    passEncoder.setBindGroup(0, this.matrixGroups.get(model))
+                    // set textureGroup
+                    passEncoder.setBindGroup(1, model.renderer.materialBindGroup)
+                    // set lightGroup
+                    if(model.material.lighting == Lighting.BlinnPhong){
+                        this.updatePointLightBuffer(model)
+                        passEncoder.setBindGroup(2, this.lightGroups.get(model))
+                    }
+
+                    // draw vertex count of cube
+                    passEncoder.drawIndexed(model.mesh.vertexCount)
+                    // webgpu run in a separate process, all the commands will be executed after submit
+                });
             });
-
-            passEncoder.end()
         })
-
+        passEncoder.end()
         OBI.device.queue.submit([commandEncoder.finish()])
     }
 
