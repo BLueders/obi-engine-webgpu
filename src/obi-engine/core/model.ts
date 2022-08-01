@@ -1,13 +1,14 @@
 import { mat3, mat4, quat, vec3 } from "gl-matrix"
 import Material from "./material"
 import Mesh from "./mesh"
+import Renderer from "./renderer"
 import Transform from "./transform"
 
 export default class Model{
     mesh: Mesh
     material: Material
     transform: Transform
-
+    renderer: Renderer
     /**
     * Creates an instance of ModelTransform.
     * @param {Mesh} mesh the mesh data of this model, eg. vertices, positions, etc.
@@ -22,6 +23,8 @@ export default class Model{
         this.material = material
 
         this.transform = new Transform(position, rotation, scale)
+
+        this.renderer = new Renderer(this)
 	}
 
     //...................................................

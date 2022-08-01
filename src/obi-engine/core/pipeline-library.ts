@@ -1,16 +1,47 @@
-import OBI from "./obi"
+import Material from "./material";
+import Model from "./model";
+import OBI from "./obi";
+import vertexShaderSrc from "../../shaders/standard-vert.wgsl"
+import blinnphongShaderSrc from "../../shaders/blinnphong-frag.wgsl"
+import textureUnlitShaderSrc from "../../shaders/textured-unlit-frag.wgsl"
 
-export default class Pipeline{
+export class PipelineLibrary{
+    static pipelineCache:Map<string, GPURenderPipeline> = new Map<string, GPURenderPipeline>()
 
-    gpuPipeline: GPURenderPipeline
+    static getPipeline(model:Model){
+        
+        const specs = new PipelineSpecs(model)
+        const hash = specs.getHash()
+        
+        if(this.pipelineCache.has(hash))
+            return this.pipelineCache.get(hash)
 
-    vertexUniformGroup: GPUBindGroup
-    mvpBuffer: GPUBuffer
-    invTransBuffer: GPUBuffer
-    camPosBuffer: GPUBuffer
+        const pipeline = this.makePipelineWithSpecs(specs)
+        this.pipelineCache.set(hash, pipeline)
+        return pipeline
+    }
 
-    static async createBasicPipeline(name: string, vertex: string, fragment: string) {
-        const pipeline = await OBI.device.createRenderPipelineAsync({
+    static makePipelineWithSpecs(specs:PipelineSpecs):GPURenderPipeline{
+        let label = ""
+        let vert = vertexShaderSrc
+        let frag
+        switch (specs.lighting) {
+            case Lighting.BlinnPhong:
+                frag = blinnphongShaderSrc
+                label += "BlinnPhong "
+                break;
+        
+            default:
+                frag = textureUnlitShaderSrc
+                label += "Unlit "
+                break;
+        }
+        
+        return PipelineLibrary.createBasicPipeline(label + "Base", vert, frag)
+    }
+
+    static createBasicPipeline(name: string, vertex: string, fragment: string) {
+        const pipeline = OBI.device.createRenderPipeline({
             label: 'Basic Pipline: ' + name,
             layout: 'auto',
             vertex: {
@@ -74,54 +105,29 @@ export default class Pipeline{
             }
         } as GPURenderPipelineDescriptor)
 
-        const newPipeline = new Pipeline()
-
-        newPipeline.mvpBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Model, View and Projection 4x4 matrix',
-            size: 4 * 4 * 4 * 3, // 4 x 4 x float32 * 3 matrices (MVP)
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
-
-        newPipeline.invTransBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Inverse Transpose 3x3 matrix',
-            //TODO: WGSL cant do a 3 component vector as a uniform as part of a matrix (only single) in matrices there has to be 16 bytes per entry
-            size: 4 * 4 * 4, // 3 x 3 x float32
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
-
-        newPipeline.camPosBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer store 4x4 matrix',
-            size: 3 * 4, // 3 values
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
-
-        // create a uniform group contains matrix
-        newPipeline.vertexUniformGroup = OBI.device.createBindGroup({
-            label: 'Uniform Group with Matrix',
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [
-                {
-                    binding: 0,
-                    resource: {
-                        buffer: newPipeline.mvpBuffer
-                    },
-                },
-                {
-                    binding: 1,
-                    resource: {
-                        buffer: newPipeline.invTransBuffer
-                    },
-                },
-                {
-                    binding: 2,
-                    resource: {
-                        buffer: newPipeline.camPosBuffer
-                    },
-                }
-            ]
-        })
-
-        newPipeline.gpuPipeline = pipeline
-        return newPipeline
+        return pipeline
     }
+}
+
+export class PipelineSpecs{
+
+    hasAlbedo:boolean
+    hasTint:boolean
+    lighting:Lighting
+
+    constructor(model:Model){
+        this.hasAlbedo = Boolean(model.material.albedoMap).valueOf() 
+        this.hasAlbedo = Boolean(model.material.tint).valueOf() 
+        this.lighting = model.material.lighting
+    }
+
+    getHash(){ // not really a hash value, but I think this works best in typescript
+        return JSON.stringify(this)
+    }
+}
+
+export enum Lighting{
+    BlinnPhong,
+    PBR,
+    Unlit
 }

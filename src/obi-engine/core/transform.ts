@@ -1,4 +1,5 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix"
+import OBI from "./obi"
 
 export default class Transform{
   position: vec3

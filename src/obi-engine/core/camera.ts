@@ -15,8 +15,11 @@ export class Camera {
     viewMatrix: mat4;
     projectionMatrix: mat4;
     size: any;
+
     depthMap: GPUTexture
-    
+    viewBuffer: GPUBuffer
+    projBuffer: GPUBuffer
+
     /** Creates a new PerspectiveCamera object
     * @param {number} fov the field of view of the camera, default 45 degrees.
     * @param {number} near distance to the near plane of the camera frustum, default 0.1.
@@ -39,6 +42,18 @@ export class Camera {
             format: "depth24plus",
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         } as GPUTextureDescriptor)
+
+        this.viewBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer View 4x4 matrix',
+            size: 4 * 4 * 4, // 4 x 4 float32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
+
+        this.projBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer M Projection 4x4 matrix',
+            size: 4 * 4 * 4, // 4 x 4 float32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
     }
 
     resize(){

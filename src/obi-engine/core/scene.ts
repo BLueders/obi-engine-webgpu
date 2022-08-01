@@ -3,34 +3,34 @@ import { Camera } from "./camera"
 import { Light, LightType } from "./light"
 import Model from "./model"
 import OBI from "./obi"
-import Pipeline from "./pipeline"
+import { Lighting } from "./pipeline-library"
 
 export default class Scene{
 
     mainCamera: Camera
-    pipelines: Map<Pipeline, Model[]>
+    pipelines: Map<GPURenderPipeline, Model[]>
 
     ambientLight: vec4
     dirLight: Light
     pointlights: Light[]
     dirAmbientBuffer: GPUBuffer
-    pointLightBuffer: GPUBuffer
-    lightGroups: Map<Pipeline, GPUBindGroup>
+    pointLightBuffers: Map<Model, GPUBuffer>
+    lightGroups: Map<Model, GPUBindGroup>
+    matrixGroups: Map<Model, GPUBindGroup>
     
     constructor(){
         this.mainCamera = new Camera()
-        this.pipelines = new Map<Pipeline, Model[]>()
+        this.pipelines = new Map<GPURenderPipeline, Model[]>()
+
+        this.matrixGroups = new Map<Model, GPUBindGroup>()
+
         this.pointlights = []
+        this.pointLightBuffers = new Map<Model, GPUBuffer>()
+        this.lightGroups = new Map<Model, GPUBindGroup>()
 
         this.dirLight = new Light(LightType.Directional, vec3.fromValues(0,5,0), quat.fromEuler(quat.create(), 0.5,0,0))
         this.dirLight.color = vec3.fromValues(1,1,1)
         this.ambientLight = vec4.fromValues(1,1,1,0.1)
-
-        this.pointlights.push(new Light(LightType.Point))
-        this.pointlights.push(new Light(LightType.Point))
-        this.pointlights.push(new Light(LightType.Point))
-
-        this.lightGroups = new Map<Pipeline, GPUBindGroup>()
 
         this.dirAmbientBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer for lighting data',
@@ -38,11 +38,7 @@ export default class Scene{
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
 
-        this.pointLightBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer for lighting data',
-            size: 3 * 4 * 4 * 4, // 3 * vec4<float32> * 4 point lights
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
+
     }
 
     addLight(light:Light){
@@ -57,12 +53,14 @@ export default class Scene{
     }
 
     addModel(model:Model){
-        if(!this.pipelines.has(model.material.pipeline)){
-            this.pipelines.set(model.material.pipeline, [model])
+        if(!this.pipelines.has(model.renderer.pipeline)){
+            this.pipelines.set(model.renderer.pipeline, [model])
         } else {
-            this.pipelines.get(model.material.pipeline).push(model)
+            this.pipelines.get(model.renderer.pipeline).push(model)
         }
-        this.createLightBindGroup(model.material.pipeline)
+        this.createLightBindGroup(model)
+        this.createMatrixBindGroud(model)
+        return model
     }
 
     draw(){
@@ -89,10 +87,11 @@ export default class Scene{
 
         this.pipelines.forEach((models, pipeline) => {
 
-            const pl = pipeline.gpuPipeline
-
             const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
-            passEncoder.setPipeline(pl)
+            passEncoder.setPipeline(pipeline)
+
+            OBI.device.queue.writeBuffer(this.mainCamera.viewBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
+            OBI.device.queue.writeBuffer(this.mainCamera.projBuffer, 0, this.mainCamera.projectionMatrix as Float32Array)
 
             models.forEach(model => {
 
@@ -100,26 +99,24 @@ export default class Scene{
                 // set vertex
                 passEncoder.setVertexBuffer(0, model.mesh.vertexBuffer)
                 passEncoder.setIndexBuffer(model.mesh.indexBuffer, "uint16")
-
-                // update matrices and vertex uniform buffers
-                const mvpData = new Float32Array(16 * 3);
-                mvpData.set(model.transform.modelMatrix, 0);
-                mvpData.set(this.mainCamera.viewMatrix, 16);
-                mvpData.set(this.mainCamera.projectionMatrix, 32);
-                
-                OBI.device.queue.writeBuffer(pipeline.mvpBuffer, 0, mvpData)
+              
+                OBI.device.queue.writeBuffer(model.renderer.modelMatrixBuffer, 0, model.transform.modelMatrix as Float32Array)
 
                 let invTrans3x3: mat3 = mat3.create();
                 mat3.normalFromMat4(invTrans3x3, model.transform.modelMatrix);
-                OBI.device.queue.writeBuffer(pipeline.invTransBuffer, 0, invTrans3x3 as Float32Array)
-                OBI.device.queue.writeBuffer(pipeline.camPosBuffer, 0, this.mainCamera.getPosition() as Float32Array)
+                
+                OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, invTrans3x3 as Float32Array)
 
                 // set uniformGroup for vertex shader
-                passEncoder.setBindGroup(0, pipeline.vertexUniformGroup)
+                passEncoder.setBindGroup(0, this.matrixGroups.get(model))
                 // set textureGroup
-                passEncoder.setBindGroup(1, model.material.materialBindGroup)
+                passEncoder.setBindGroup(1, model.renderer.materialBindGroup)
                 // set lightGroup
-                passEncoder.setBindGroup(2, this.lightGroups.get(pipeline))
+                if(model.material.lighting == Lighting.BlinnPhong){
+                    this.updatePointLightBuffer(model)
+                    passEncoder.setBindGroup(2, this.lightGroups.get(model))
+                }
+
                 // draw vertex count of cube
                 passEncoder.drawIndexed(model.mesh.vertexCount)
                 // webgpu run in a separate process, all the commands will be executed after submit
@@ -140,12 +137,19 @@ export default class Scene{
         OBI.device.queue.writeBuffer(this.dirAmbientBuffer, 0, ambientDirData)
     }
 
-    createLightBindGroup(pipeline:Pipeline){
-        if(this.lightGroups.has(pipeline)) return
+    createLightBindGroup(model:Model){
+        if(model.material.lighting === Lighting.Unlit)
+            return
+        const pointLightBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer for lighting data',
+            size: 3 * 4 * 4 * 3, // 3 * vec4<float32> * 3 point lights
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        })
+        this.pointLightBuffers.set(model, pointLightBuffer)
 
         const bindGroup = OBI.device.createBindGroup({
             label: 'Light Group with Ambient, Dir and PointLights',
-            layout: pipeline.gpuPipeline.getBindGroupLayout(2),
+            layout: model.renderer.pipeline.getBindGroupLayout(2),
             entries: [
                 {
                     binding: 0, // the color buffer
@@ -156,12 +160,78 @@ export default class Scene{
                 {
                     binding: 1, // the sampler
                     resource: {
-                        buffer: this.pointLightBuffer
+                        buffer: pointLightBuffer
                     }
                 }
             ]
         })
 
-        this.lightGroups.set(pipeline, bindGroup)
+        this.lightGroups.set(model, bindGroup)
+    }
+
+    updatePointLightBuffer(model:Model){
+        if(model.material.lighting === Lighting.Unlit)
+            return
+        if(this.pointlights.length >= 3){ // if less than 4 point lights, no sorting required
+            const pointLightSortingFunction = (lightA: Light, lightB: Light) => {
+                const distA = vec3.sqrDist(model.transform.position, lightA.transform.position)
+                const distB = vec3.sqrDist(model.transform.position, lightB.transform.position)
+                if (distA < distB) {
+                    return -1;
+                }
+                if (distA > distB) {
+                    return 1;
+                }
+                return 0;
+            }
+            this.pointlights.sort(pointLightSortingFunction)
+        }
+
+        const lightData = new Float32Array(3 * 3 * 4) // 3 point lights with 3 vec4
+        lightData.fill(0)
+        for(let i = 0; i<this.pointlights.length && i<3; i++){
+            lightData.set(this.pointlights[i].transform.position, i * 12)
+            lightData.set(this.pointlights[i].color, i * 12 + 4)
+            lightData[i * 12 + 8] = this.pointlights[i].range
+            lightData[i * 12 + 9] = this.pointlights[i].intensity
+        }
+
+        const buffer = this.pointLightBuffers.get(model)
+        OBI.device.queue.writeBuffer(buffer, 0, lightData)
+    }
+
+    createMatrixBindGroud(model:Model){
+        const bindGroup = OBI.device.createBindGroup({
+            label: 'Light Group with Ambient, Dir and PointLights',
+            layout: model.renderer.pipeline.getBindGroupLayout(0),
+            entries: [
+                {
+                    binding: 0, // model matrix
+                    resource: {
+                        buffer: model.renderer.modelMatrixBuffer
+                    }
+                },
+                {
+                    binding: 1, // view matrix
+                    resource: {
+                        buffer: this.mainCamera.viewBuffer
+                    }
+                },
+                {
+                    binding: 2, // proj matrix
+                    resource: {
+                        buffer: this.mainCamera.projBuffer
+                    }
+                },
+                {
+                    binding: 3, // the sampler
+                    resource: {
+                        buffer: model.renderer.invTransBuffer
+                    }
+                }
+            ]
+        })
+
+        this.matrixGroups.set(model, bindGroup)
     }
 }
