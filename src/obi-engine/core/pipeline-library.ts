@@ -2,8 +2,9 @@ import Material from "./material";
 import Model from "./model";
 import OBI from "./obi";
 import vertexShaderSrc from "../../shaders/standard-vert.wgsl"
-import blinnphongShaderSrc from "../../shaders/blinnphong-frag.wgsl"
+import fragShaderSrc from "../../shaders/standard-frag.wgsl"
 import textureUnlitShaderSrc from "../../shaders/textured-unlit-frag.wgsl"
+import { preprocessShader } from "./preprocessor";
 
 export class PipelineLibrary{
     static pipelineCache:Map<string, GPURenderPipeline> = new Map<string, GPURenderPipeline>()
@@ -18,25 +19,19 @@ export class PipelineLibrary{
 
         const pipeline = this.makePipelineWithSpecs(specs)
         this.pipelineCache.set(hash, pipeline)
+        console.log("Created Pipeline for specs: " + specs.getHash())
         return pipeline
     }
 
     static makePipelineWithSpecs(specs:PipelineSpecs):GPURenderPipeline{
         let label = ""
         let vert = vertexShaderSrc
-        let frag
-        switch (specs.lighting) {
-            case Lighting.BlinnPhong:
-                frag = blinnphongShaderSrc
-                label += "BlinnPhong "
-                break;
+        let frag = fragShaderSrc
         
-            default:
-                frag = textureUnlitShaderSrc
-                label += "Unlit "
-                break;
-        }
-        
+        const shaderFlags = specs.getFlagMap()
+        vert = preprocessShader(vert, shaderFlags)
+        frag = preprocessShader(frag, shaderFlags)
+
         return PipelineLibrary.createBasicPipeline(label + "Base", vert, frag)
     }
 
@@ -112,17 +107,22 @@ export class PipelineLibrary{
 export class PipelineSpecs{
 
     hasAlbedo:boolean
-    hasTint:boolean
     lighting:Lighting
 
     constructor(model:Model){
         this.hasAlbedo = Boolean(model.material.albedoMap).valueOf() 
-        this.hasAlbedo = Boolean(model.material.tint).valueOf() 
         this.lighting = model.material.lighting
     }
 
     getHash(){ // not really a hash value, but I think this works best in typescript
         return JSON.stringify(this)
+    }
+
+    getFlagMap(){
+        const shaderFlags = new Map<string, boolean>()    
+        shaderFlags.set("HAS_ALBEDO", this.hasAlbedo)
+        shaderFlags.set("BLINNPHONG_LIGHTING", this.lighting === Lighting.BlinnPhong)
+        return shaderFlags
     }
 }
 

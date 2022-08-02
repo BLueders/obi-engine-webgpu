@@ -98,6 +98,7 @@ export default class Scene{
 
             OBI.device.queue.writeBuffer(this.mainCamera.viewBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
             OBI.device.queue.writeBuffer(this.mainCamera.projBuffer, 0, this.mainCamera.projectionMatrix as Float32Array)
+            OBI.device.queue.writeBuffer(this.mainCamera.camPosBuffer, 0, this.mainCamera.getPosition() as Float32Array)
 
             meshes.forEach((models, mesh) => {
 
@@ -155,7 +156,7 @@ export default class Scene{
         this.pointLightBuffers.set(model, pointLightBuffer)
 
         const bindGroup = OBI.device.createBindGroup({
-            label: 'Light Group with Ambient, Dir and PointLights',
+            label: 'Point Light Binding Group',
             layout: model.renderer.pipeline.getBindGroupLayout(2),
             entries: [
                 {
@@ -209,7 +210,7 @@ export default class Scene{
 
     createMatrixBindGroud(model:Model){
         const bindGroup = OBI.device.createBindGroup({
-            label: 'Light Group with Ambient, Dir and PointLights',
+            label: 'matrix bind group',
             layout: model.renderer.pipeline.getBindGroupLayout(0),
             entries: [
                 {
@@ -231,9 +232,15 @@ export default class Scene{
                     }
                 },
                 {
-                    binding: 3, // the sampler
+                    binding: 3, // the inv trans matrix
                     resource: {
                         buffer: model.renderer.invTransBuffer
+                    }
+                },
+                {
+                    binding: 4, // the cam pos
+                    resource: {
+                        buffer: this.mainCamera.camPosBuffer
                     }
                 }
             ]

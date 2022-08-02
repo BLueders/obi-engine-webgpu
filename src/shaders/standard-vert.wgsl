@@ -2,6 +2,7 @@
 @group(0) @binding(1) var<uniform> viewMatrix : mat4x4<f32>;
 @group(0) @binding(2) var<uniform> projMatrix : mat4x4<f32>;
 @group(0) @binding(3) var<uniform> invTransData : mat4x4<f32>; // has to be mat4x4, because mat3x3 does not work properly (will be vec4 anyways, since wgsl can't do array stuctures with less than 16 bytes)
+@group(0) @binding(4) var<uniform> camPos : vec3<f32>;
 
 struct VertexOutput {
     @builtin(position) position : vec4<f32>,
@@ -9,8 +10,7 @@ struct VertexOutput {
     @location(1) worldPosition: vec4<f32>,
     @location(2) t: vec3<f32>,
     @location(3) b: vec3<f32>,
-    @location(4) n: vec3<f32>,
-    @location(5) camPos: vec3<f32>
+    @location(4) n: vec3<f32>
 };
 
 @vertex
@@ -46,7 +46,7 @@ fn main(
     out.b = b;
     out.n = n;
 
-    out.camPos = viewMatrix[4].xyz;
+    var camPosTem = camPos;
 
     return out;
 }
