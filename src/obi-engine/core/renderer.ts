@@ -1,3 +1,4 @@
+import { Camera } from "./camera"
 import Model from "./model"
 import OBI from "./obi"
 import { PipelineLibrary } from "./pipeline-library"
@@ -8,8 +9,11 @@ export default class Renderer {
 
     pipeline: GPURenderPipeline
     materialBindGroup: GPUBindGroup
+
     modelMatrixBuffer: GPUBuffer
     invTransBuffer: GPUBuffer
+
+    matrixBindGroup: GPUBindGroup
 
     constructor(model: Model) {
         this.model = model
@@ -59,14 +63,24 @@ export default class Renderer {
             }
         })
 
-        if (this.model.material.albedoMap) {
+        if (this.model.material.albedoMap || this.model.material.normalMap) {
             entries.push({
                 binding: 1, // the sampler
                 resource: sampler
             })
+        }
+
+        if(this.model.material.albedoMap){
             entries.push({
                 binding: 2, // albedo texture
                 resource: this.model.material.albedoMap.gpuTexture.createView()
+            })
+        }
+
+        if (this.model.material.normalMap) {
+            entries.push({
+                binding: 3, // albedo texture
+                resource: this.model.material.normalMap.gpuTexture.createView()
             })
         }
 
@@ -76,5 +90,46 @@ export default class Renderer {
             layout: this.pipeline.getBindGroupLayout(1),
             entries: entries
         })
+    }
+
+    createMatrixBindGroud(camera:Camera){
+        const bindGroup = OBI.device.createBindGroup({
+            label: 'matrix bind group',
+            layout: this.model.renderer.pipeline.getBindGroupLayout(0),
+            entries: [
+                {
+                    binding: 0, // model matrix
+                    resource: {
+                        buffer: this.model.renderer.modelMatrixBuffer
+                    }
+                },
+                {
+                    binding: 1, // view matrix
+                    resource: {
+                        buffer: camera.viewBuffer
+                    }
+                },
+                {
+                    binding: 2, // proj matrix
+                    resource: {
+                        buffer: camera.projBuffer
+                    }
+                },
+                {
+                    binding: 3, // the inv trans matrix
+                    resource: {
+                        buffer: this.model.renderer.invTransBuffer
+                    }
+                },
+                {
+                    binding: 4, // the cam pos
+                    resource: {
+                        buffer: camera.camPosBuffer
+                    }
+                }
+            ]
+        })
+
+        this.matrixBindGroup = bindGroup
     }
 }

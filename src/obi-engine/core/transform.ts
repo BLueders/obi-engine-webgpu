@@ -6,6 +6,7 @@ export default class Transform{
   rotation: quat
   scale: vec3
   modelMatrix: mat4
+  invTransMatrix: mat3
 
   constructor(position?: vec3, rotation?: quat, scale?: vec3){
 
@@ -20,6 +21,7 @@ export default class Transform{
 
     // create and initialize Matrix
     this.modelMatrix = mat4.create()
+    this.invTransMatrix = mat3.create()
     this.update()
   }
 
@@ -32,6 +34,7 @@ export default class Transform{
 
 	update(){
     mat4.fromRotationTranslationScale(this.modelMatrix, this.rotation, this.position, this.scale)
+    mat3.normalFromMat4(this.invTransMatrix, this.modelMatrix);
     return this
   }
 

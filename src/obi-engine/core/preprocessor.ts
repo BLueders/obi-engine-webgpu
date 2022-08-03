@@ -1,9 +1,24 @@
-const preprocessorSymbols = /#([^\s]*)(\s*)/gm;
+import utils from "../../shaders/utils.wgsl"
+import lighting from "../../shaders/lighting.wgsl"
+
+const preprocessorSymbols = /#([^\s]*)(\s*)/gm
+
+const commentline = /\/\*.+?\*\/|\/\/.*(?=[\n\r])/g
 
 export function preprocessShader(code: string, flags: Map<string, boolean>) {
+  
+    code = code.replace("#import utils.wgsl", utils)
+    
+    code = code.replace("#import lighting.wgsl", lighting)
+  
+    code = code.replaceAll(commentline, "") 
+
     flags.forEach((value, name) => {
         code = code.replaceAll(name, value ? "1" : "0")
     })
+
+    // TODO: handle import statements nicer and throw errors on invalid import
+
     return runPreprocessor(code)
 }
 

@@ -22,7 +22,8 @@ async function run() {
     const initSuccess = await OBI.initWebGPU(canvas)
     if (!initSuccess) return
 
-    const albedoMap = await Texture.loadAsync('mainTexture', "./assets/bricks.png")
+    const albedoMap = await Texture.loadAsync('mainTexture', "./assets/medieval-cobblestone-albedo.png")
+    const normalMap = await Texture.loadAsync('mainTexture', "./assets/medieval-cobblestone-normal.png")
 
     const scene = new Scene()
 
@@ -36,6 +37,7 @@ async function run() {
         for (let j = 0; j < 30; j++) {
             const mat = new Material(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
             mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
+            mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
             mat.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
 
             //mat.lighting = Lighting.BlinnPhong

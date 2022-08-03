@@ -106,11 +106,13 @@ export class PipelineLibrary{
 
 export class PipelineSpecs{
 
-    hasAlbedo:boolean
+    hasAlbedoMap:boolean
+    hasNormalMap:boolean
     lighting:Lighting
 
     constructor(model:Model){
-        this.hasAlbedo = Boolean(model.material.albedoMap).valueOf() 
+        this.hasAlbedoMap = Boolean(model.material.albedoMap).valueOf() 
+        this.hasNormalMap = Boolean(model.material.normalMap).valueOf() 
         this.lighting = model.material.lighting
     }
 
@@ -120,7 +122,8 @@ export class PipelineSpecs{
 
     getFlagMap(){
         const shaderFlags = new Map<string, boolean>()    
-        shaderFlags.set("HAS_ALBEDO", this.hasAlbedo)
+        shaderFlags.set("HAS_ALBEDO_MAP", this.hasAlbedoMap)
+        shaderFlags.set("HAS_NORMAL_MAP", this.hasNormalMap)
         shaderFlags.set("BLINNPHONG_LIGHTING", this.lighting === Lighting.BlinnPhong)
         return shaderFlags
     }

@@ -37,8 +37,6 @@ export default class Scene{
             size: 3 * 4 * 4, // 3 * vec4<float32>
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
-
-
     }
 
     addLight(light:Light){
@@ -65,7 +63,7 @@ export default class Scene{
 
         if(model.material.lighting === Lighting.BlinnPhong)
             this.createLightBindGroup(model)
-        this.createMatrixBindGroud(model)
+        model.renderer.createMatrixBindGroud(this.mainCamera)
         return model
     }
 
@@ -110,14 +108,10 @@ export default class Scene{
 
                     model.update()
                     OBI.device.queue.writeBuffer(model.renderer.modelMatrixBuffer, 0, model.transform.modelMatrix as Float32Array)
-
-                    let invTrans3x3: mat3 = mat3.create();
-                    mat3.normalFromMat4(invTrans3x3, model.transform.modelMatrix);
-                    
-                    OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, invTrans3x3 as Float32Array)
+                    OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, model.transform.invTransMatrix as Float32Array)
 
                     // set uniformGroup for vertex shader
-                    passEncoder.setBindGroup(0, this.matrixGroups.get(model))
+                    passEncoder.setBindGroup(0, model.renderer.matrixBindGroup)
                     // set textureGroup
                     passEncoder.setBindGroup(1, model.renderer.materialBindGroup)
                     // set lightGroup
@@ -206,46 +200,5 @@ export default class Scene{
 
         const buffer = this.pointLightBuffers.get(model)
         OBI.device.queue.writeBuffer(buffer, 0, lightData)
-    }
-
-    createMatrixBindGroud(model:Model){
-        const bindGroup = OBI.device.createBindGroup({
-            label: 'matrix bind group',
-            layout: model.renderer.pipeline.getBindGroupLayout(0),
-            entries: [
-                {
-                    binding: 0, // model matrix
-                    resource: {
-                        buffer: model.renderer.modelMatrixBuffer
-                    }
-                },
-                {
-                    binding: 1, // view matrix
-                    resource: {
-                        buffer: this.mainCamera.viewBuffer
-                    }
-                },
-                {
-                    binding: 2, // proj matrix
-                    resource: {
-                        buffer: this.mainCamera.projBuffer
-                    }
-                },
-                {
-                    binding: 3, // the inv trans matrix
-                    resource: {
-                        buffer: model.renderer.invTransBuffer
-                    }
-                },
-                {
-                    binding: 4, // the cam pos
-                    resource: {
-                        buffer: this.mainCamera.camPosBuffer
-                    }
-                }
-            ]
-        })
-
-        this.matrixGroups.set(model, bindGroup)
     }
 }
