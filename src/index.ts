@@ -2,7 +2,7 @@ import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix";
 import OBI from "./obi-engine/core/obi";
 import { Camera, OrbiterCameraController } from "./obi-engine/core/camera";
 import Material from "./obi-engine/core/material";
-import { Texture } from "./obi-engine/core/texture";
+import { CubeMapTexture, Texture } from "./obi-engine/core/texture";
 import Scene from "./obi-engine/core/scene";
 import Model from "./obi-engine/core/model";
 import Primitives from "./obi-engine/core/primitives";
@@ -10,6 +10,7 @@ import Input from "./obi-engine/utils/input";
 import { Light, LightType } from "./obi-engine/core/light";
 import { Lighting } from "./obi-engine/core/pipeline-library";
 import { preprocessShader } from "./obi-engine/core/preprocessor";
+import Environment from "./obi-engine/core/environment";
 
 // This will execute the setup function once the whole document has been loaded.
 window.addEventListener("load", function () {
@@ -22,10 +23,18 @@ async function run() {
     const initSuccess = await OBI.initWebGPU(canvas)
     if (!initSuccess) return
 
-    const albedoMap = await Texture.loadAsync('mainTexture', "./assets/medieval-cobblestone-albedo.png")
-    const normalMap = await Texture.loadAsync('mainTexture', "./assets/medieval-cobblestone-normal.png")
+    const albedoMap = await Texture.loadAsync("./assets/medieval-cobblestone-albedo.png")
+    const normalMap = await Texture.loadAsync("./assets/medieval-cobblestone-normal.png")
 
-    const scene = new Scene()
+    const cubeMap = await CubeMapTexture.loadAsyncFromImages(
+        "./assets/skybox/skybox_right.png",
+        "./assets/skybox/skybox_left.png",
+        "./assets/skybox/skybox_up.png",
+        "./assets/skybox/skybox_down.png",
+        "./assets/skybox/skybox_front.png",
+        "./assets/skybox/skybox_back.png")
+
+    const scene = new Scene(new Environment(cubeMap))
 
     Input.initialize(OBI.context.canvas as HTMLCanvasElement)
 

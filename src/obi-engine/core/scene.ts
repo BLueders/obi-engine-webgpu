@@ -1,5 +1,6 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix"
 import { Camera } from "./camera"
+import Environment from "./environment"
 import { Light, LightType } from "./light"
 import Mesh from "./mesh"
 import Model from "./model"
@@ -8,17 +9,19 @@ import { Lighting } from "./pipeline-library"
 
 export default class Scene{
 
+    environment:Environment
     mainCamera: Camera
-    pipelines: Map<GPURenderPipeline, Map<Mesh, Model[]>>
     ambientLight: vec4
     dirLight: Light
     pointlights: Light[]
+
     dirAmbientBuffer: GPUBuffer
     pointLightBuffers: Map<Model, GPUBuffer>
+    pipelines: Map<GPURenderPipeline, Map<Mesh, Model[]>>
     lightGroups: Map<Model, GPUBindGroup>
     matrixGroups: Map<Model, GPUBindGroup>
     
-    constructor(){
+    constructor(environment:Environment){
         this.mainCamera = new Camera()
         this.pipelines = new Map<GPURenderPipeline, Map<Mesh, Model[]>>()
 
@@ -37,6 +40,7 @@ export default class Scene{
             size: 3 * 4 * 4, // 3 * vec4<float32>
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
+        this.environment = environment
     }
 
     addLight(light:Light){
@@ -90,6 +94,9 @@ export default class Scene{
 
         const commandEncoder = OBI.device.createCommandEncoder()
         const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
+
+        this.environment.drawSkybox(passEncoder, this.mainCamera)
+
         this.pipelines.forEach((meshes, pipeline) => {
 
             passEncoder.setPipeline(pipeline)

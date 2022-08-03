@@ -1,9 +1,7 @@
-import Material from "./material";
 import Model from "./model";
 import OBI from "./obi";
 import vertexShaderSrc from "../../shaders/standard-vert.wgsl"
 import fragShaderSrc from "../../shaders/standard-frag.wgsl"
-import textureUnlitShaderSrc from "../../shaders/textured-unlit-frag.wgsl"
 import { preprocessShader } from "./preprocessor";
 
 export class PipelineLibrary{
@@ -17,13 +15,13 @@ export class PipelineLibrary{
         if(this.pipelineCache.has(hash))
             return this.pipelineCache.get(hash)
 
-        const pipeline = this.makePipelineWithSpecs(specs)
+        const pipeline = this.createPipelineWithSpecs(specs)
         this.pipelineCache.set(hash, pipeline)
         console.log("Created Pipeline for specs: " + specs.getHash())
         return pipeline
     }
 
-    static makePipelineWithSpecs(specs:PipelineSpecs):GPURenderPipeline{
+    static createPipelineWithSpecs(specs:PipelineSpecs):GPURenderPipeline{
         let label = ""
         let vert = vertexShaderSrc
         let frag = fragShaderSrc
@@ -45,8 +43,7 @@ export class PipelineLibrary{
                 }),
                 entryPoint: 'main',
                 buffers: [{
-                    arrayStride: 11 * 4, // 3 position
-                    // arrayStride: 11 * 4, // 3 position 2 uv,
+                    arrayStride: 11 * 4, 
                     attributes: [
                         {
                             // position
@@ -89,7 +86,7 @@ export class PipelineLibrary{
             primitive: {
                 topology: 'triangle-list',
                 // Culling backfaces pointing away from the camera
-                // cullMode: 'back'
+                cullMode: 'back'
             },
             // Enable depth testing since we have z-level positions
             // Fragment closest to the camera is rendered in front
