@@ -1,5 +1,5 @@
 import { quat, vec3 } from "gl-matrix";
-import Transform from "./transform";
+import { Transform } from "./transform";
 
 export enum LightType{
     Directional,
