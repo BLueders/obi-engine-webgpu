@@ -1,5 +1,6 @@
 import utils from "../../shaders/utils.wgsl"
 import lighting from "../../shaders/lighting.wgsl"
+import { PipelineSpecs } from "./pipeline-library"
 
 const preprocessorSymbols = /#([^\s]*)(\s*)/gm
 
@@ -13,8 +14,14 @@ export function preprocessShader(code: string, flags: Map<string, boolean>) {
   
     code = code.replaceAll(commentline, "") 
 
+    // set given flags
     flags.forEach((value, name) => {
         code = code.replaceAll(name, value ? "1" : "0")
+    })
+
+    // replace rest with 0s
+    PipelineSpecs.getAllFlags().forEach(flag => {
+        code = code.replaceAll(flag, "0")
     })
 
     // TODO: handle import statements nicer and throw errors on invalid import

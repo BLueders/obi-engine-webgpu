@@ -66,28 +66,14 @@ export class PipelineLibrary{
                     ]
                 }]
             },
-
-            fragment: { // REMOVE THIS
-                module: OBI.device.createShaderModule({
-                    code: simpleRedShaderSrc,
-                }),
-                entryPoint: 'main',
-                targets: [
-                    {
-                        format: OBI.format
-                    }
-                ]
-            },
-
             primitive: {
                 topology: 'triangle-list',
-                cullMode: 'back'
+                //cullMode: 'back'
             }, 
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
-                //format: 'depth32float',
-                format: 'depth24plus',
+                format: 'depth32float',
             }
         } as GPURenderPipelineDescriptor)
     }
@@ -157,7 +143,7 @@ export class PipelineLibrary{
             primitive: {
                 topology: 'triangle-list',
                 // Culling backfaces pointing away from the camera
-                cullMode: 'back'
+                //cullMode: 'back'
             },
             // Enable depth testing since we have z-level positions
             // Fragment closest to the camera is rendered in front
@@ -197,6 +183,15 @@ export class PipelineSpecs{
         shaderFlags.set("BLINNPHONG_LIGHTING", this.lighting === Lighting.BlinnPhong)
         shaderFlags.set("RECEIVES_SHADOWS", this.receivesShadows)
         return shaderFlags
+    }
+
+    static getAllFlags(){
+        return [
+            "HAS_ALBEDO_MAP",
+            "HAS_NORMAL_MAP",
+            "BLINNPHONG_LIGHTING",
+            "RECEIVES_SHADOWS"
+        ]
     }
 }
 

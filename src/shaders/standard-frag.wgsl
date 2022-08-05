@@ -39,7 +39,19 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // ambient
     lightResult += ambient.rgb * ambient.a; // alpha = intensity
 
-    lightResult += blinnphongDirLight(dirDir.xyz, dirColor.rgb, normal, viewDir, in.worldPosition.xyz);
+    var dirBlinnPhong = blinnphongDirLight(dirDir.xyz, dirColor.rgb, normal, viewDir);
+
+#if RECEIVES_SHADOWS
+    var shadow = textureSampleCompare(
+        dirShadowMap, 
+        shadowSampler,
+        in.shadowPos.xy, 
+        in.shadowPos.z - 0.005  // apply a small bias to avoid acne
+    );
+    dirBlinnPhong *= shadow;
+#endif
+
+    lightResult += dirBlinnPhong;
 
     for(var i = 0; i < 3; i++){
         lightResult += blinnphongPointLight(pointlightData[i], normal, viewDir, in.worldPosition.xyz);
@@ -58,12 +70,12 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // finalColor = finalColor / (finalColor + vec3<f32>(1.0));
     // finalColor = pow(finalColor, vec3<f32>(1.0/2.2));  
 
-    var shadowTest = textureSample(
-        dirShadowMap, 
-        defaultSampler,
-        in.uv, 
-    ) * lightResult;
-    return vec4<f32>(shadowTest,1);
+    // var shadowTest = textureSample(
+    //     dirShadowMap, 
+    //     defaultSampler,
+    //     in.uv, 
+    // ) * lightResult;
+    // return vec4<f32>(shadowTest,1);
 
-   //return vec4<f32>(finalColor,1);
+   return vec4<f32>(finalColor,1);
 }

@@ -1,6 +1,6 @@
 export default class OBI{
 
-    static SHADOWMAP_RES: number = 1024
+    static SHADOWMAP_RES: number = 2048
     static SHADOW_DISTANCE: number = 50
 
     static device: GPUDevice

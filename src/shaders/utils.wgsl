@@ -4,7 +4,10 @@ struct VertexOut {
     @location(1) worldPosition: vec4<f32>,
     @location(2) tangent: vec3<f32>,
     @location(3) bitangent: vec3<f32>,
-    @location(4) normal: vec3<f32>
+    @location(4) normal: vec3<f32>,
+#if RECEIVES_SHADOWS
+    @location(5) shadowPos: vec3<f32>,
+#endif
 };
 
 struct VertexIn {

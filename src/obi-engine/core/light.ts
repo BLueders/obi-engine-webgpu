@@ -109,35 +109,58 @@ class ShadowProjector{
     }
 
     update(scene:Scene){
-        const target = vec3.create()
-        const position = scene.mainCamera.getPosition()
-        const forward = this.light.transform.localForward
-        const up = forward[0] == 0 && forward[2] == 0 ? vec3.fromValues(1,0,0) : vec3.fromValues(0,1,0) // make sure up is valid
-        vec3.add(target, position, forward)
-        mat4.targetTo(this.modelMatrix, position, target, up)
+        // const target = vec3.create()
+        // const position = scene.mainCamera.getPosition()
+        // const forward = this.light.transform.localForward
+        // const up = forward[0] == 0 && forward[2] == 0 ? vec3.fromValues(1,0,0) : vec3.fromValues(0,1,0) // make sure up is valid
+        // vec3.add(target, position, forward)
+        // mat4.targetTo(this.modelMatrix, position, target, up)
                
-        mat4.invert(this.viewMatrix, this.modelMatrix)
+        // mat4.invert(this.viewMatrix, this.modelMatrix)
 
-        switch(this.projection){
-            case ShadowProjection.Orthographic:
-                mat4.ortho(this.projectionMatrix,
-                    -OBI.SHADOW_DISTANCE, // left
-                     OBI.SHADOW_DISTANCE, // right
-                    -OBI.SHADOW_DISTANCE, // bottom
-                     OBI.SHADOW_DISTANCE, // top
-                    -OBI.SHADOW_DISTANCE, // near
-                     OBI.SHADOW_DISTANCE  // far
-                     );
-                break;
-            case ShadowProjection.Perspective:
-                throw new Error("Not implemented")
-                break;
-        }
+        // switch(this.projection){
+        //     case ShadowProjection.Orthographic:
+        //         mat4.ortho(this.projectionMatrix,
+        //             -OBI.SHADOW_DISTANCE, // left
+        //              OBI.SHADOW_DISTANCE, // right
+        //             -OBI.SHADOW_DISTANCE, // bottom
+        //              OBI.SHADOW_DISTANCE, // top
+        //             -OBI.SHADOW_DISTANCE, // near
+        //              OBI.SHADOW_DISTANCE  // far
+        //              );
+        //         break;
+        //     case ShadowProjection.Perspective:
+        //         throw new Error("Not implemented")
+        //         break;
+        // }
 
         // match lightMatrix to view frustum coordinates
-        mat4.fromTranslation(this.lightMatrix, vec3.fromValues(0.5, 0.5, 0.5));
-        mat4.scale(this.lightMatrix, this.lightMatrix, vec3.fromValues(0.5,0.5,0.5));
-        mat4.mul(this.lightMatrix, this.lightMatrix, this.projectionMatrix);
-        mat4.mul(this.lightMatrix, this.lightMatrix, this.viewMatrix);
+        // mat4.fromTranslation(this.lightMatrix, vec3.fromValues(0.5, 0.5, 0.5));
+        // mat4.scale(this.lightMatrix, this.lightMatrix, vec3.fromValues(0.5,-0.5,0.5));
+        // mat4.mul(this.lightMatrix, this.projectionMatrix, this.viewMatrix);
+
+        const forward = this.light.transform.localForward
+        //const lightPosition = vec3.fromValues(50, 100, -100);
+        const lightPosition = scene.mainCamera.getPosition()
+        //vec3.add(lightPosition, lightPosition, vec3.fromValues(0,10,0))
+        //vec3.inverse(lightPosition, forward)
+        const upVector = vec3.fromValues(0,1,0)
+        //const upVector = forward[0] == 0 && forward[2] == 0 ? vec3.fromValues(1,0,0) : vec3.fromValues(0,1,0) // make sure up is valid
+        const origin = vec3.fromValues(0, 0, 0)
+        vec3.add(origin, lightPosition, forward)
+
+        mat4.lookAt(this.viewMatrix, lightPosition, origin, upVector);
+        console.log(this.viewMatrix)
+        mat4.ortho(this.projectionMatrix,
+                -OBI.SHADOW_DISTANCE, // left
+                OBI.SHADOW_DISTANCE, // right
+                -OBI.SHADOW_DISTANCE, // bottom
+                OBI.SHADOW_DISTANCE, // top
+                -OBI.SHADOW_DISTANCE, // near
+                OBI.SHADOW_DISTANCE  // far
+                // -80, 80, -80, 80, -50, 50
+                );
+        
+        mat4.multiply(this.lightMatrix, this.projectionMatrix, this.viewMatrix);
     }
 }

@@ -25,7 +25,7 @@ export default class Scene {
     constructor(environment: Environment) {
         this.sceneGraph = new SceneGraph()
 
-        this.mainCamera = new Camera(45.0, 0.1, 20)
+        this.mainCamera = new Camera()
         this.pipelines = new Map<GPURenderPipeline, Map<Mesh, Model[]>>()
         this.shadowPipeline = PipelineLibrary.createShadowPipeline()
 
@@ -73,31 +73,16 @@ export default class Scene {
         const commandEncoder = OBI.device.createCommandEncoder()
 
         // SHADOW PASS
-        // const shadowPassDescriptor: GPURenderPassDescriptor = {
-        //     colorAttachments: [],
-        //     depthStencilAttachment: {
-        //         view: this.dirLight.shadowProjector.shadowMapView,
-        //         depthClearValue: 1.0,
-        //         depthLoadOp: 'clear',
-        //         depthStoreOp: 'store',
-        //     }
-        // }
         const shadowPassDescriptor: GPURenderPassDescriptor = {
-            colorAttachments: [
-                {
-                    view: OBI.context.getCurrentTexture().createView(),
-                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
-                    loadOp: 'clear',
-                    storeOp: 'store'
-                }
-            ],
+            colorAttachments: [],
             depthStencilAttachment: {
-                view: this.mainCamera.depthMap.createView(),
+                view: this.dirLight.shadowProjector.shadowMapView,
                 depthClearValue: 1.0,
                 depthLoadOp: 'clear',
                 depthStoreOp: 'store',
             }
         }
+
         const shadowPassEndcoder = commandEncoder.beginRenderPass(shadowPassDescriptor)
         shadowPassEndcoder.setPipeline(this.shadowPipeline)
         this.pipelines.forEach((meshes, pipeline) => {
@@ -115,57 +100,57 @@ export default class Scene {
         })
         shadowPassEndcoder.end()
 
-        // // RENDER PASS
-        // const renderPassDescriptor: GPURenderPassDescriptor = {
-        //     colorAttachments: [
-        //         {
-        //             view: OBI.context.getCurrentTexture().createView(),
-        //             clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
-        //             loadOp: 'clear',
-        //             storeOp: 'store'
-        //         }
-        //     ],
-        //     depthStencilAttachment: {
-        //         view: this.mainCamera.depthMap.createView(),
-        //         depthClearValue: 1.0,
-        //         depthLoadOp: 'clear',
-        //         depthStoreOp: 'store',
-        //     }
-        // }
+        // RENDER PASS
+        const renderPassDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [
+                {
+                    view: OBI.context.getCurrentTexture().createView(),
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+                    loadOp: 'clear',
+                    storeOp: 'store'
+                }
+            ],
+            depthStencilAttachment: {
+                view: this.mainCamera.depthMap.createView(),
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+            }
+        }
 
-        // const renderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
+        const renderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
 
-        // this.environment.drawSkybox(renderPassEncoder, this.mainCamera)
+        this.environment.drawSkybox(renderPassEncoder, this.mainCamera)
 
-        // this.pipelines.forEach((meshes, pipeline) => {
+        this.pipelines.forEach((meshes, pipeline) => {
 
-        //     renderPassEncoder.setPipeline(pipeline)
+            renderPassEncoder.setPipeline(pipeline)
 
-        //     meshes.forEach((models, mesh) => {
+            meshes.forEach((models, mesh) => {
 
-        //         // set vertex
-        //         renderPassEncoder.setVertexBuffer(0, mesh.vertexBuffer)
-        //         renderPassEncoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+                // set vertex
+                renderPassEncoder.setVertexBuffer(0, mesh.vertexBuffer)
+                renderPassEncoder.setIndexBuffer(mesh.indexBuffer, "uint16")
 
-        //         models.forEach(model => {
+                models.forEach(model => {
 
-        //             // set uniformGroup for vertex shader
-        //             renderPassEncoder.setBindGroup(0, model.renderer.matrixBindGroup)
-        //             // set textureGroup
-        //             renderPassEncoder.setBindGroup(1, model.renderer.materialBindGroup)
-        //             // set lightGroup
-        //             if (model.renderer.lighting == Lighting.BlinnPhong) {
-        //                 model.renderer.updatePointLightBuffer(this.pointlights)
-        //                 renderPassEncoder.setBindGroup(2, model.renderer.lightingBindGroup)
-        //             }
+                    // set uniformGroup for vertex shader
+                    renderPassEncoder.setBindGroup(0, model.renderer.matrixBindGroup)
+                    // set textureGroup
+                    renderPassEncoder.setBindGroup(1, model.renderer.materialBindGroup)
+                    // set lightGroup
+                    if (model.renderer.lighting == Lighting.BlinnPhong) {
+                        model.renderer.updatePointLightBuffer(this.pointlights)
+                        renderPassEncoder.setBindGroup(2, model.renderer.lightingBindGroup)
+                    }
 
-        //             // draw vertex count of cube
-        //             renderPassEncoder.drawIndexed(model.mesh.vertexCount)
-        //             // webgpu run in a separate process, all the commands will be executed after submit
-        //         });
-        //     });
-        // })
-        // renderPassEncoder.end()
+                    // draw vertex count of cube
+                    renderPassEncoder.drawIndexed(model.mesh.vertexCount)
+                    // webgpu run in a separate process, all the commands will be executed after submit
+                });
+            });
+        })
+        renderPassEncoder.end()
         OBI.device.queue.submit([commandEncoder.finish()])
     }
 

@@ -6,6 +6,10 @@
 @group(0) @binding(3) var<uniform> invTransData : mat4x4<f32>; // has to be mat4x4, because mat3x3 does not work properly (will be vec4 anyways, since wgsl can't do array stuctures with less than 16 bytes)
 @group(0) @binding(4) var<uniform> camPos : vec3<f32>;
 
+#if RECEIVES_SHADOWS
+    @group(2) @binding(3) var<uniform> dirLightMatrix: mat4x4<f32>;
+#endif
+
 @vertex
 fn main(in : VertexIn) -> VertexOut{
 
@@ -35,7 +39,17 @@ fn main(in : VertexIn) -> VertexOut{
     out.bitangent = b;
     out.normal = n;
 
-    var camPosTem = camPos;
+#if RECEIVES_SHADOWS
+    let posFromLight : vec4<f32> = dirLightMatrix * modelMatrix * vec4<f32>(in.position.xyz, 1.0);
+
+    // Convert XY to (0, 1)
+    // Y is flipped because texture coords are Y-down.
+    out.shadowPos = vec3<f32>(
+        posFromLight.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5),
+        posFromLight.z
+    );
+
+#endif
 
     return out;
 }
