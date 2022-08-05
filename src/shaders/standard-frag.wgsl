@@ -42,13 +42,21 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     var dirBlinnPhong = blinnphongDirLight(dirDir.xyz, dirColor.rgb, normal, viewDir);
 
 #if RECEIVES_SHADOWS
-    var shadow = textureSampleCompare(
-        dirShadowMap, 
-        shadowSampler,
-        in.shadowPos.xy, 
-        in.shadowPos.z - 0.005  // apply a small bias to avoid acne
-    );
-    dirBlinnPhong *= shadow;
+
+    // var inRange = in.shadowPos.x >= 0.0 &&
+    //               in.shadowPos.x <= 1.0 &&
+    //               in.shadowPos.y >= 0.0 &&
+    //               in.shadowPos.y <= 1.0;
+   // if(inRange){
+        var shadow = textureSampleCompare(
+            dirShadowMap, 
+            shadowSampler,
+            in.shadowPos.xy, 
+            in.shadowPos.z - 0.005  // apply a small bias to avoid acne
+        );
+        dirBlinnPhong *= shadow;
+ //   }
+
 #endif
 
     lightResult += dirBlinnPhong;

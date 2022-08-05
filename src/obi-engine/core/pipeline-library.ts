@@ -68,7 +68,7 @@ export class PipelineLibrary{
             },
             primitive: {
                 topology: 'triangle-list',
-                //cullMode: 'back'
+                cullMode: 'back'
             }, 
             depthStencil: {
                 depthWriteEnabled: true,
@@ -143,7 +143,7 @@ export class PipelineLibrary{
             primitive: {
                 topology: 'triangle-list',
                 // Culling backfaces pointing away from the camera
-                //cullMode: 'back'
+                cullMode: 'back'
             },
             // Enable depth testing since we have z-level positions
             // Fragment closest to the camera is rendered in front
