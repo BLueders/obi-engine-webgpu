@@ -4,8 +4,6 @@ import { Texture } from "./texture"
 
 export default class Material {
 
-    lighting:Lighting
-
     tint: vec4
     albedoMap: Texture
     normalMap: Texture
@@ -17,6 +15,5 @@ export default class Material {
 
     constructor(tint: vec4) {
         this.tint = tint
-        this.lighting = Lighting.BlinnPhong
     }  
 }

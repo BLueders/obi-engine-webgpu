@@ -42,43 +42,40 @@ async function run() {
 
     const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
 
-    const NUM_MODELS = 50.0
-    let models:Model[] = []
-    for (let index = 0; index < NUM_MODELS; index++) {
-        const mat = new Material(vec4.fromValues(index / NUM_MODELS, 0, 0, 1))
-        //const mat = new Material(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-        mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-        mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-        mat.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
-        const model = new Model(meshes[Math.floor(Math.random() * 4)], mat)
-        model.transform.position[0] = 4
-        if(index!=0){
-            model.transform.setParent(models[index-1].transform)
+    const NUM_MODELS = 5.0
+
+    for (let i = 0; i < NUM_MODELS; i++) {
+        for (let j = 0; j < NUM_MODELS; j++) {
+            const mat = new Material(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+            // mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
+            // mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
+            mat.albedoMap = albedoMap 
+            mat.normalMap = normalMap
+
+            const model = new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - NUM_MODELS, 0, j * 2 - NUM_MODELS))
+            //model.renderer.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
+            //model.renderer.receivesShadows = model.renderer.lighting == Lighting.BlinnPhong
+            model.renderer.lighting = Lighting.BlinnPhong
+            model.renderer.receivesShadows = true
+            scene.addModel(model)
         }
-        models.push(model)
-        scene.addModel(model)
     }
 
-    // for (let i = 0; i < 30; i++) {
-    //     for (let j = 0; j < 30; j++) {
-    //         const mat = new Material(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-    //         mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-    //         mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-    //         mat.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
+    quat.fromEuler(scene.dirLight.transform.rotation, 45, 45, 0)
 
-    //         //mat.lighting = Lighting.BlinnPhong
-    //         scene.addModel(new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - 30, 0, j * 2 - 30)))
-    //     }
-    // }
-
-    quat.fromEuler(scene.dirLight.transform.rotation, -45, 90, 0)
+    const mat = new Material(vec4.fromValues(0.7, 0.7, 0.7, 1))
+    mat.albedoMap = albedoMap 
+    const model = new Model(Primitives.getPlaneMesh(20,20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10,1,10))
+    model.renderer.lighting = Lighting.BlinnPhong
+    model.renderer.receivesShadows = true
+    scene.addModel(model)
 
     // const LIGHTCOUNT = 10
     // const lights: Light[] = []
     // for (let i = 0; i < LIGHTCOUNT; i++) {
-    //     const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 15, 2, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 15))
+    //     const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 15, 6, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 15))
     //     pointLight.range = 15
-    //     pointLight.intensity = 3
+    //     pointLight.intensity = 20
     //     pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
     //     scene.addLight(pointLight)
     //     lights.push(pointLight)
@@ -92,9 +89,6 @@ async function run() {
         //     const position: vec3 = vec3.fromValues(Math.sin((i / LIGHTCOUNT + timer / 4) * 2 * Math.PI) * radius, 2, Math.cos((i / LIGHTCOUNT + timer / 4) * 2 * Math.PI) * radius)
         //     lights[i].transform.position = position
         // }
-
-        //quat.fromEuler(models[0].transform.rotation, 0, performance.now()/100, 0)
-        models.forEach(model => quat.fromEuler(model.transform.rotation, 0, Math.sin(performance.now()/1000)*7, 0))
 
         Input.update()
         controller.update()

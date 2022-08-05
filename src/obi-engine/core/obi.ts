@@ -1,5 +1,8 @@
 export default class OBI{
 
+    static SHADOWMAP_RES: number = 1024
+    static SHADOW_DISTANCE: number = 50
+
     static device: GPUDevice
     static format: GPUTextureFormat
     static context: GPUCanvasContext

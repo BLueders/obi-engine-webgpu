@@ -13,7 +13,12 @@
 
 // Light bind group
 @group(2) @binding(0) var<uniform> ambientDirData : BaseLightData;
-@group(2) @binding(1) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
+#if RECEIVES_SHADOWS
+    @group(2) @binding(1) var dirShadowMap: texture_depth_2d;
+    @group(2) @binding(2) var shadowSampler: sampler_comparison;
+    @group(2) @binding(3) var<uniform> dirLightMatrix: mat4x4<f32>;
+#endif
+@group(2) @binding(4) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
 
 @fragment
 fn main(in: VertexOut) -> @location(0) vec4<f32> {
@@ -34,7 +39,7 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // ambient
     lightResult += ambient.rgb * ambient.a; // alpha = intensity
 
-    lightResult += blinnphongDirLight(dirDir.xyz, dirColor.rgb, normal, viewDir);
+    lightResult += blinnphongDirLight(dirDir.xyz, dirColor.rgb, normal, viewDir, in.worldPosition.xyz);
 
     for(var i = 0; i < 3; i++){
         lightResult += blinnphongPointLight(pointlightData[i], normal, viewDir, in.worldPosition.xyz);
@@ -53,5 +58,12 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // finalColor = finalColor / (finalColor + vec3<f32>(1.0));
     // finalColor = pow(finalColor, vec3<f32>(1.0/2.2));  
 
-    return vec4<f32>(finalColor,1);
+    var shadowTest = textureSample(
+        dirShadowMap, 
+        defaultSampler,
+        in.uv, 
+    ) * lightResult;
+    return vec4<f32>(shadowTest,1);
+
+   //return vec4<f32>(finalColor,1);
 }

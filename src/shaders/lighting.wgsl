@@ -46,14 +46,26 @@ fn getNormalInfo(v: VertexOut) -> NormalInfo
     return info;
 };
 
-fn blinnphongDirLight(dir:vec3<f32>, color:vec3<f32>, normal:vec3<f32>, viewDir:vec3<f32>) -> vec3<f32> 
+fn blinnphongDirLight(dir:vec3<f32>, color:vec3<f32>, normal:vec3<f32>, viewDir:vec3<f32>, worldPosition:vec3<f32>) -> vec3<f32> 
 {
     // Directional Light diffuse
-    var diffuse = max(dot(normalize(dir), normal), 0.0) * color;
+    var diffuse = max(dot(normalize(-dir), normal), 0.0) * color;
 
-    var reflectDir = reflect(-dir.xyz, normal);  
+    var reflectDir = reflect(dir.xyz, normal);  
     var spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     var specular = spec * color;  
+
+#if RECEIVES_SHADOWS
+    var shadowPos = dirLightMatrix * vec4<f32>(worldPosition,1);
+    var shadow = textureSampleCompare(
+        dirShadowMap, 
+        shadowSampler,
+        shadowPos.xy, 
+        shadowPos.z - 0.005  // apply a small bias to avoid acne
+    );
+    diffuse *= shadow;
+    specular *= shadow;
+#endif
 
     return diffuse + specular;
 }
