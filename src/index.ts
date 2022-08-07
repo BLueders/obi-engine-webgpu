@@ -61,9 +61,7 @@ async function run() {
         }
     }
 
-    quat.fromEuler(scene.dirLight.transform.rotation, 45, 45, 0)
-
-    const mat = new Material(vec4.fromValues(0.7, 0.7, 0.7, 1))
+    let mat = new Material(vec4.fromValues(0.7, 0.7, 0.7, 1))
     mat.albedoMap = albedoMap 
     const model = new Model(Primitives.getPlaneMesh(20,20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10,1,10))
     model.renderer.lighting = Lighting.BlinnPhong
@@ -83,12 +81,7 @@ async function run() {
 
     function frame() {
 
-        // for (let i = 0; i < LIGHTCOUNT; i++) {
-        //     const timer = performance.now() / 2000
-        //     const radius = Math.sin(timer) * 30
-        //     const position: vec3 = vec3.fromValues(Math.sin((i / LIGHTCOUNT + timer / 4) * 2 * Math.PI) * radius, 2, Math.cos((i / LIGHTCOUNT + timer / 4) * 2 * Math.PI) * radius)
-        //     lights[i].transform.position = position
-        // }
+        quat.fromEuler(scene.dirLight.transform.rotation, 75, performance.now()/50, 0)
 
         Input.update()
         controller.update()

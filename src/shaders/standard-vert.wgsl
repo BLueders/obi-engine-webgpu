@@ -49,6 +49,8 @@ fn main(in : VertexIn) -> VertexOut{
         posFromLight.z
     );
 
+    //out.shadowPos = posFromLight;
+
 #endif
 
     return out;

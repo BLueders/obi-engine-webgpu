@@ -43,19 +43,39 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
 
 #if RECEIVES_SHADOWS
 
-    // var inRange = in.shadowPos.x >= 0.0 &&
-    //               in.shadowPos.x <= 1.0 &&
-    //               in.shadowPos.y >= 0.0 &&
-    //               in.shadowPos.y <= 1.0;
-   // if(inRange){
-        var shadow = textureSampleCompare(
-            dirShadowMap, 
-            shadowSampler,
-            in.shadowPos.xy, 
-            in.shadowPos.z - 0.005  // apply a small bias to avoid acne
-        );
-        dirBlinnPhong *= shadow;
- //   }
+    var inRange = f32(in.shadowPos.x >= 0.0 &&
+                  in.shadowPos.x <= 1.0 &&
+                  in.shadowPos.y >= 0.0 &&
+                  in.shadowPos.y <= 1.0 &&
+                  in.shadowPos.z >= 0.0 &&
+                  in.shadowPos.z <= 1.0);
+
+    var shadowPos = in.shadowPos;// / in.shadowPos.w;
+    // var shadow = textureSampleCompare(
+    //     dirShadowMap, 
+    //     shadowSampler,
+    //     shadowPos.xy, 
+    //     shadowPos.z - 0.005  // apply a small bias to avoid acne
+    // );
+
+    // apply Percentage-closer filtering (PCF)
+    // sample nearest 9 texels to smooth result
+    var shadow : f32 = 0.0;
+    let size = f32(textureDimensions(dirShadowMap).x);
+    for (var y : i32 = -1 ; y <= 1 ; y = y + 1) {
+        for (var x : i32 = -1 ; x <= 1 ; x = x + 1) {
+            let offset = vec2<f32>(f32(x) / size, f32(y) / size);
+            shadow = shadow + textureSampleCompare(
+                dirShadowMap, 
+                shadowSampler,
+                shadowPos.xy + offset, 
+                shadowPos.z - 0.005  // apply a small bias to avoid acne
+            );
+        }
+    }
+    shadow = shadow / 9.0;
+
+    dirBlinnPhong *= clamp(shadow + (1-inRange),0,1);
 
 #endif
 
@@ -81,9 +101,24 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // var shadowTest = textureSample(
     //     dirShadowMap, 
     //     defaultSampler,
-    //     in.uv, 
-    // ) * lightResult;
-    // return vec4<f32>(shadowTest,1);
+    //     shadowPos.xy, 
+    // );
 
+    // if(shadowTest > shadowPos.z) {
+    //    return vec4<f32>(1, 0, 0,1);
+
+    // }
+    // else{
+    //     return vec4<f32>(0, 0, 0,1);
+
+    // }
+
+    // var shadowTest = textureSample(
+    //     dirShadowMap, 
+    //     defaultSampler,
+    //     in.uv, 
+    // );
+    // return vec4<f32>(shadowTest, 0, 0,1);
+    
    return vec4<f32>(finalColor,1);
 }
