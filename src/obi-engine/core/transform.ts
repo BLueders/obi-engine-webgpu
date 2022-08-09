@@ -8,8 +8,6 @@ export class Transform {
     modelMatrix: mat4
     normalMatrix: mat4
 
-    transformBuffer: GPUBuffer
-
     private children: Set<Transform>
     private parent: Transform
 
@@ -30,13 +28,6 @@ export class Transform {
         this.modelMatrix = mat4.create()
         this.normalMatrix = mat4.create()
         this.update(mat4.identity(mat4.create()))
-
-        this.transformBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Model 4x4 matrix',
-            size: 4 * 4 * 4 + // 4 x 4 x float32 model matrix
-                4 * 4 * 4, // 4 x 4 x float32 inv trans matrix (stride has to be min 4xfloat32)
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
     }
 
     // The base Vectors i,j and k of our 4x4 model matrix can be extracted to give us
