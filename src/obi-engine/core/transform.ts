@@ -6,7 +6,9 @@ export class Transform {
     rotation: quat
     scale: vec3
     modelMatrix: mat4
-    invTransMatrix: mat3
+    normalMatrix: mat4
+
+    transformBuffer: GPUBuffer
 
     private children: Set<Transform>
     private parent: Transform
@@ -26,8 +28,15 @@ export class Transform {
 
         // create and initialize Matrix
         this.modelMatrix = mat4.create()
-        this.invTransMatrix = mat3.create()
+        this.normalMatrix = mat4.create()
         this.update(mat4.identity(mat4.create()))
+
+        this.transformBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer Model 4x4 matrix',
+            size: 4 * 4 * 4 + // 4 x 4 x float32 model matrix
+                4 * 4 * 4, // 4 x 4 x float32 inv trans matrix (stride has to be min 4xfloat32)
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
     }
 
     // The base Vectors i,j and k of our 4x4 model matrix can be extracted to give us
@@ -42,7 +51,8 @@ export class Transform {
     update(parentMatrix:mat4) {
         mat4.fromRotationTranslationScale(this.modelMatrix, this.rotation, this.position, this.scale)
         mat4.mul(this.modelMatrix, parentMatrix, this.modelMatrix)
-        mat3.normalFromMat4(this.invTransMatrix, this.modelMatrix)
+        mat4.invert(this.normalMatrix, this.modelMatrix)
+        mat4.transpose(this.normalMatrix, this.normalMatrix)
         this.children.forEach(child => child.update(this.modelMatrix))
         return this
     }

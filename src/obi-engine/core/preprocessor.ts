@@ -1,12 +1,12 @@
 import utils from "../../shaders/utils.wgsl"
 import lighting from "../../shaders/lighting.wgsl"
-import { PipelineSpecs } from "./pipeline-library"
+import Shader from "./shader"
 
 const preprocessorSymbols = /#([^\s]*)(\s*)/gm
 
 const commentline = /\/\*.+?\*\/|\/\/.*(?=[\n\r])/g
 
-export function preprocessShader(code: string, flags: Map<string, boolean>) {
+export function preprocessShader(code: string, flags: Set<string>) {
   
     code = code.replace("#import utils.wgsl", utils)
     
@@ -15,12 +15,12 @@ export function preprocessShader(code: string, flags: Map<string, boolean>) {
     code = code.replaceAll(commentline, "") 
 
     // set given flags
-    flags.forEach((value, name) => {
-        code = code.replaceAll(name, value ? "1" : "0")
+    flags.forEach(flag => {
+        code = code.replaceAll(flag, "1")
     })
 
     // replace rest with 0s
-    PipelineSpecs.getAllFlags().forEach(flag => {
+    Shader.ALL_FLAGS.forEach(flag => {
         code = code.replaceAll(flag, "0")
     })
 

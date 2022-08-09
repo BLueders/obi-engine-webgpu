@@ -1,7 +1,7 @@
 #import utils.wgsl
 #import lighting.wgsl
 
-@group(0) @binding(4) var<uniform> camPos : vec3<f32>;
+@group(0) @binding(1) var<uniform> scene : Scene;
 
 @group(1) @binding(0) var<uniform> color : vec4<f32>;
 
@@ -33,7 +33,7 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     var dirDir = ambientDirData.directionalDir;
     var dirColor = ambientDirData.directionalColor;
 
-    var viewDir = normalize(camPos - in.worldPosition.xyz);
+    var viewDir = normalize(scene.viewPosition - in.worldPosition.xyz);
 
     var lightResult = vec3(0.0, 0.0, 0.0);
     // ambient
@@ -51,12 +51,6 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
                   in.shadowPos.z <= 1.0);
 
     var shadowPos = in.shadowPos;// / in.shadowPos.w;
-    // var shadow = textureSampleCompare(
-    //     dirShadowMap, 
-    //     shadowSampler,
-    //     shadowPos.xy, 
-    //     shadowPos.z - 0.005  // apply a small bias to avoid acne
-    // );
 
     // apply Percentage-closer filtering (PCF)
     // sample nearest 9 texels to smooth result

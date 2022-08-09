@@ -1,12 +1,18 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix"
+import { toMat4 } from "../utils/utils"
 import { Camera } from "./camera"
 import Environment from "./environment"
 import { Light, LightType } from "./light"
+import { Material } from "./material"
 import Mesh from "./mesh"
 import Model from "./model"
 import OBI from "./obi"
-import { Lighting, PipelineLibrary } from "./pipeline-library"
+import { Lighting, ShaderLibrary } from "./shader-library"
+import Shader from "./shader"
 import { SceneGraph } from "./transform"
+import ShadowPassShader from "./shadowpass-shader"
+import StandardShader from "./standard-shader"
+import StandardMaterial from "./standard-material"
 
 export default class Scene {
 
@@ -19,15 +25,15 @@ export default class Scene {
     pointlights: Light[]
 
     dirAmbientBuffer: GPUBuffer
-    pipelines: Map<GPURenderPipeline, Map<Mesh, Model[]>>
-    shadowPipeline: GPURenderPipeline
+    materials: Map<Material, Map<Mesh, Model[]>>
+    shadowShader: ShadowPassShader
 
     constructor(environment: Environment) {
         this.sceneGraph = new SceneGraph()
 
         this.mainCamera = new Camera()
-        this.pipelines = new Map<GPURenderPipeline, Map<Mesh, Model[]>>()
-        this.shadowPipeline = PipelineLibrary.createShadowPipeline()
+        this.materials = new Map<Material, Map<Mesh, Model[]>>()
+        this.shadowShader = ShaderLibrary.getShadowShader()
 
         this.pointlights = []
 
@@ -43,6 +49,13 @@ export default class Scene {
         this.environment = environment
     }
 
+    prepare() {
+        this.materials.forEach((mesh, material) => {
+            material.validate()
+            material.bindScene(this)
+        })
+    }
+
     draw() {
 
         this.updateAmbientDirLights()
@@ -50,25 +63,25 @@ export default class Scene {
         this.sceneGraph.updateGraph()
         this.dirLight.shadowProjector.update(this)
 
-        OBI.device.queue.writeBuffer(this.mainCamera.viewBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.mainCamera.projBuffer, 0, this.mainCamera.projectionMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.mainCamera.camPosBuffer, 0, this.mainCamera.getPosition() as Float32Array)
+        // OBI.device.queue.writeBuffer(this.mainCamera.cameraBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
+        // OBI.device.queue.writeBuffer(this.mainCamera.cameraBuffer, 64, this.mainCamera.projectionMatrix as Float32Array)
+        // OBI.device.queue.writeBuffer(this.mainCamera.cameraBuffer, 128, this.mainCamera.getPosition() as Float32Array)
 
-        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.viewBuffer, 0, this.dirLight.shadowProjector.viewMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.projBuffer, 0, this.dirLight.shadowProjector.projectionMatrix as Float32Array)
-        // OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.viewBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
-        // OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.projBuffer, 0, this.mainCamera.projectionMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
+        // OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightCameraBuffer, 0, this.dirLight.shadowProjector.viewMatrix as Float32Array)
+        // OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightCameraBuffer, 64, this.dirLight.shadowProjector.projectionMatrix as Float32Array)
+        // OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightCameraBuffer, 128, this.mainCamera.getPosition() as Float32Array)
+
+        //OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
 
         //update model bufferdata
-        this.pipelines.forEach((meshes, pipeline) => {
-            meshes.forEach((models, mesh) => {
-                models.forEach(model => {
-                    OBI.device.queue.writeBuffer(model.renderer.modelMatrixBuffer, 0, model.transform.modelMatrix as Float32Array)
-                    OBI.device.queue.writeBuffer(model.renderer.invTransBuffer, 0, model.transform.invTransMatrix as Float32Array)
-                })
-            })
-        })
+        // this.materials.forEach((meshes, material) => {
+        //     meshes.forEach((models, mesh) => {
+        //         models.forEach(model => {
+        //             OBI.device.queue.writeBuffer(model.renderer.modelBuffer, 0, model.transform.modelMatrix as Float32Array)
+        //             OBI.device.queue.writeBuffer(model.renderer.modelBuffer, 64, model.transform.normalMatrix as Float32Array)
+        //         })
+        //     })
+        // })
 
         const commandEncoder = OBI.device.createCommandEncoder()
 
@@ -84,16 +97,23 @@ export default class Scene {
         }
 
         const shadowPassEndcoder = commandEncoder.beginRenderPass(shadowPassDescriptor)
-        shadowPassEndcoder.setPipeline(this.shadowPipeline)
-        this.pipelines.forEach((meshes, pipeline) => {
+        shadowPassEndcoder.setPipeline(this.shadowShader.renderPipeline)
+
+        OBI.device.queue.writeBuffer(this.shadowShader.lightCameraBuffer, 0, this.dirLight.shadowProjector.viewMatrix as Float32Array)
+        OBI.device.queue.writeBuffer(this.shadowShader.lightCameraBuffer, 64, this.dirLight.shadowProjector.projectionMatrix as Float32Array)
+        OBI.device.queue.writeBuffer(this.shadowShader.lightCameraBuffer, 128, this.mainCamera.getPosition() as Float32Array)
+
+        this.materials.forEach((meshes, material) => {
             meshes.forEach((models, mesh) => {
                 // set vertex
                 shadowPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
                 shadowPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
                 models.forEach(model => {
-                    if(!model.renderer.castsShadows)
+                    if(!model.material.castShadows)
                         return
-                    shadowPassEndcoder.setBindGroup(0, model.renderer.shadowpassMatrixBindGroup)
+                    
+                    OBI.device.queue.writeBuffer(this.shadowShader.modelBuffer, 0, model.transform.modelMatrix as Float32Array)
+                    shadowPassEndcoder.setBindGroup(0, this.shadowShader.matrixBindGroup)
                     shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
                 })
             })
@@ -122,9 +142,15 @@ export default class Scene {
 
         this.environment.drawSkybox(renderPassEncoder, this.mainCamera)
 
-        this.pipelines.forEach((meshes, pipeline) => {
+        this.materials.forEach((meshes, material) => {
 
-            renderPassEncoder.setPipeline(pipeline)
+            renderPassEncoder.setPipeline(material.shader.renderPipeline)
+
+            OBI.device.queue.writeBuffer((material.shader as StandardShader).lightMatrixBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
+
+            OBI.device.queue.writeBuffer(material.shader.sceneBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
+            OBI.device.queue.writeBuffer(material.shader.sceneBuffer, 64, this.mainCamera.projectionMatrix as Float32Array)
+            OBI.device.queue.writeBuffer(material.shader.sceneBuffer, 128, this.mainCamera.getPosition() as Float32Array)
 
             meshes.forEach((models, mesh) => {
 
@@ -134,14 +160,17 @@ export default class Scene {
 
                 models.forEach(model => {
 
+                    OBI.device.queue.writeBuffer(material.shader.modelBuffer, 0, model.transform.modelMatrix as Float32Array)
+                    OBI.device.queue.writeBuffer(material.shader.modelBuffer, 64, model.transform.normalMatrix as Float32Array)
+
                     // set uniformGroup for vertex shader
-                    renderPassEncoder.setBindGroup(0, model.renderer.matrixBindGroup)
+                    renderPassEncoder.setBindGroup(0, material.shader.matrixBindGroup)
                     // set textureGroup
-                    renderPassEncoder.setBindGroup(1, model.renderer.materialBindGroup)
+                    renderPassEncoder.setBindGroup(1, (material.shader as StandardShader).materialBindGroup)
                     // set lightGroup
-                    if (model.renderer.lighting == Lighting.BlinnPhong) {
-                        model.renderer.updatePointLightBuffer(this.pointlights)
-                        renderPassEncoder.setBindGroup(2, model.renderer.lightingBindGroup)
+                    if (material.lighting == Lighting.BlinnPhong) {
+                        (material as StandardMaterial).updatePointLightBuffer(this.pointlights, model.transform.position)
+                        renderPassEncoder.setBindGroup(2, (material.shader as StandardShader).lightingBindGroup)
                     }
 
                     // draw vertex count of cube
@@ -170,12 +199,10 @@ export default class Scene {
     }
 
     addModel(model: Model) {
-        model.renderer.configureForScene(this)
-
-        if (!this.pipelines.has(model.renderer.pipeline)) {
-            this.pipelines.set(model.renderer.pipeline, new Map<Mesh, Model[]>())
+        if (!this.materials.has(model.material)) {
+            this.materials.set(model.material, new Map<Mesh, Model[]>())
         }
-        var meshMap = this.pipelines.get(model.renderer.pipeline)
+        var meshMap = this.materials.get(model.material)
 
         if (!meshMap.has(model.mesh)) {
             meshMap.set(model.mesh, [])

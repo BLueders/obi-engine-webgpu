@@ -1,15 +1,14 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix";
 import OBI from "./obi-engine/core/obi";
 import { Camera, OrbiterCameraController } from "./obi-engine/core/camera";
-import Material from "./obi-engine/core/material";
+import StandardMaterial from "./obi-engine/core/standard-material";
 import { CubeMapTexture, Texture } from "./obi-engine/core/texture";
 import Scene from "./obi-engine/core/scene";
 import Model from "./obi-engine/core/model";
 import Primitives from "./obi-engine/core/primitives";
 import Input from "./obi-engine/utils/input";
 import { Light, LightType } from "./obi-engine/core/light";
-import { Lighting } from "./obi-engine/core/pipeline-library";
-import { preprocessShader } from "./obi-engine/core/preprocessor";
+import { Lighting } from "./obi-engine/core/shader-library";
 import Environment from "./obi-engine/core/environment";
 
 // This will execute the setup function once the whole document has been loaded.
@@ -46,26 +45,26 @@ async function run() {
 
     for (let i = 0; i < NUM_MODELS; i++) {
         for (let j = 0; j < NUM_MODELS; j++) {
-            const mat = new Material(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-            // mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-            // mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-            mat.albedoMap = albedoMap 
-            mat.normalMap = normalMap
+            const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+            mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
+            mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
+            mat.lighting = Lighting.BlinnPhong
+            mat.receivesShadows = true
+            mat.castShadows = true
 
             const model = new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - NUM_MODELS, 0, j * 2 - NUM_MODELS))
             //model.renderer.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
             //model.renderer.receivesShadows = model.renderer.lighting == Lighting.BlinnPhong
-            model.renderer.lighting = Lighting.BlinnPhong
-            model.renderer.receivesShadows = true
             scene.addModel(model)
         }
     }
 
-    let mat = new Material(vec4.fromValues(0.7, 0.7, 0.7, 1))
+    let mat = new StandardMaterial(vec4.fromValues(0.7, 0.7, 0.7, 1))
     mat.albedoMap = albedoMap 
+    mat.lighting = Lighting.BlinnPhong
+    mat.receivesShadows = true
+    mat.castShadows = false
     const model = new Model(Primitives.getPlaneMesh(20,20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10,1,10))
-    model.renderer.lighting = Lighting.BlinnPhong
-    model.renderer.receivesShadows = true
     scene.addModel(model)
 
     // const LIGHTCOUNT = 10
@@ -78,6 +77,7 @@ async function run() {
     //     scene.addLight(pointLight)
     //     lights.push(pointLight)
     // }
+    scene.prepare()
 
     function frame() {
 

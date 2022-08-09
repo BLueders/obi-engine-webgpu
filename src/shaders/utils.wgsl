@@ -16,3 +16,14 @@ struct VertexIn {
     @location(2) tangent : vec3<f32>,
     @location(3) uv : vec2<f32>
 };
+
+struct Scene {
+    viewMatrix : mat4x4<f32>,
+    projectionMatrix : mat4x4<f32>,
+    viewPosition : vec3<f32>
+};
+
+struct Model {
+    modelMatrix : mat4x4<f32>,
+    normalMatrix : mat4x4<f32> // has to be 4x4 because of min stride vec4<float32>
+}
