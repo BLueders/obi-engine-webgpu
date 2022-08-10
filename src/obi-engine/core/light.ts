@@ -5,6 +5,7 @@ import OBI from "./obi";
 import Primitives from "./primitives";
 import Scene from "./scene";
 import { Transform } from "./transform";
+import Shader from "./shader";
 
 export enum LightType {
     Directional,
@@ -50,6 +51,11 @@ class ShadowProjector {
     light: Light
     projection: ShadowProjection
 
+    lightMatrixUniformBuffer: GPUBuffer
+
+    shadowCameraUniformBuffer: GPUBuffer
+    shadowCameraBindGroup: GPUBindGroup
+
     constructor(light: Light) {
         this.light = light
 
@@ -72,7 +78,33 @@ class ShadowProjector {
             default:
                 throw new Error("Not Implemented")
                 break
-        }
+        } 
+        
+        this.lightMatrixUniformBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer LightMatrix 4x4 matrix',
+            size: 4 * 4 * 4, // 4 x 4 float32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
+
+        this.shadowCameraUniformBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer Shadow Camera Data',
+            size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
+                4 * 4 * 4 + // 4 x 4 float32 projection matrix
+                3 * 4,      // 3 * float32 camera position
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
+
+        const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPENTRY]})
+        this.shadowCameraBindGroup = OBI.device.createBindGroup({
+            label: 'Shadow Camera Bind Group',
+            layout: shadowCameraBindGroupLayout,
+            entries: [{
+                binding: 0, // camera data
+                resource: {
+                    buffer: this.shadowCameraUniformBuffer
+                }
+            }]
+        })
     }
 
     update(scene: Scene) {

@@ -1,24 +1,24 @@
 #import utils.wgsl
 #import lighting.wgsl
 
-@group(0) @binding(1) var<uniform> scene : Scene;
-
-@group(1) @binding(0) var<uniform> color : vec4<f32>;
+// Scene bind group
+@group(1) @binding(0) var<uniform> scene : Scene;
+#if BLINNPHONG_LIGHTING
+@group(1) @binding(1) var<uniform> ambientDirData : BaseLightData;
+#if RECEIVES_SHADOWS
+    @group(1) @binding(2) var dirShadowMap: texture_depth_2d;
+    @group(1) @binding(3) var shadowSampler: sampler_comparison;
+#endif
+#endif
 
 // Texture bind group
-@group(1) @binding(1) var defaultSampler : sampler;
-@group(1) @binding(2) var albedoMap : texture_2d<f32>;
-@group(1) @binding(3) var normalMap : texture_2d<f32>;
-@group(1) @binding(4) var emissiveMap : texture_2d<f32>;
+@group(2) @binding(0) var<uniform> color : vec4<f32>;
+@group(2) @binding(1) var defaultSampler : sampler;
+@group(2) @binding(2) var albedoMap : texture_2d<f32>;
+@group(2) @binding(3) var normalMap : texture_2d<f32>;
+// @group(2) @binding(4) var emissiveMap : texture_2d<f32>;
 
-// Light bind group
-@group(2) @binding(0) var<uniform> ambientDirData : BaseLightData;
-#if RECEIVES_SHADOWS
-    @group(2) @binding(1) var dirShadowMap: texture_depth_2d;
-    @group(2) @binding(2) var shadowSampler: sampler_comparison;
-    @group(2) @binding(3) var<uniform> dirLightMatrix: mat4x4<f32>;
-#endif
-@group(2) @binding(4) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
+@group(3) @binding(0) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
 
 @fragment
 fn main(in: VertexOut) -> @location(0) vec4<f32> {

@@ -6,15 +6,13 @@ import shadowShaderSrc from "../../shaders/shadowpass-vert.wgsl";
 import simpleRedShaderSrc from "../../shaders/simple-red-frag.wgsl";
 import Shader from "./shader";
 import { stringHash } from "../utils/utils";
-import StandardShader from "./standard-shader";
-import ShadowPassShader from "./shadowpass-shader";
 
 export class ShaderLibrary{
     static shaderCache:Map<number, Shader> = new Map<number, Shader>()
 
     static getStandardShader(flags:Set<string>){
         
-        const label = "OBI Standard Shader"
+        const label = "OBI Standard Shader "
 
         const hash = stringHash(label + Array.from(flags.values()))
         
@@ -24,18 +22,18 @@ export class ShaderLibrary{
         const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc)
         console.log("Created Standard Shader variant for: " + Array.from(flags.values()))
         
-        const shader = new StandardShader(hash, renderPipeline)
+        const shader = new Shader(hash, renderPipeline)
         this.shaderCache.set(hash, shader)
         return shader
     }
 
-    static getShadowShader(): ShadowPassShader{
+    static getShadowShader(): Shader{
 
         const label = "OBI Shadow Shader"
         const hash = stringHash(label)
 
         if(this.shaderCache.has(hash))
-            return this.shaderCache.get(hash) as ShadowPassShader
+            return this.shaderCache.get(hash)
 
         const depthStencil:GPUDepthStencilState = {
             depthWriteEnabled: true,
@@ -46,7 +44,7 @@ export class ShaderLibrary{
         const renderPipeline = this.createPipelineWithFlags(label, new Set<string>(), shadowShaderSrc, undefined, depthStencil)
         console.log("Created Shadow Shader")
         
-        const shader = new ShadowPassShader(hash, renderPipeline)
+        const shader = new Shader(hash, renderPipeline)
         this.shaderCache.set(hash, shader)
         return shader
     }
@@ -84,10 +82,13 @@ export class ShaderLibrary{
         if(!depthStencil){
             depthStencil = Shader.DEFAULT_DEPTHSTENCIL_STATE
         }
+        
+        const modelMatrixLayout = OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPENTRY]})
+        const sceneMatrixLayout = OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_CAMERA_BINDGROUPENTRY]})
 
         const pipeline = OBI.device.createRenderPipeline({
-            label: label + flags.toString(),
-            layout: 'auto',
+            label: label + Array.from(flags.values()),
+            layout: OBI.device.createPipelineLayout({bindGroupLayouts: [modelMatrixLayout, sceneMatrixLayout]}),
             vertex: vertexState,
             fragment: fragmentState,
             primitive: {

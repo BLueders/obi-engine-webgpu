@@ -17,6 +17,23 @@ export default class Shader {
         format: 'depth24plus',
     }
 
+    static DEFAULT_MODEL_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
+            binding: 0, 
+            visibility: GPUShaderStage.VERTEX, 
+            buffer: {
+              type: 'uniform',
+            },
+          }
+
+    static DEFAULT_CAMERA_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
+            binding: 0, 
+            visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, 
+            buffer: {
+              type: 'uniform',
+            },
+    }
+
+
     static HAS_TINT_COLOR_FLAG = "HAS_TINT_COLOR"
     static HAS_ALBEDO_MAP_FLAG = "HAS_ALBEDO_MAP"
     static HAS_NORMAL_MAP_FLAG = "HAS_NORMAL_MAP"
@@ -46,46 +63,8 @@ export default class Shader {
     hash: number
     renderPipeline: GPURenderPipeline
 
-    modelBuffer: GPUBuffer
-    sceneBuffer: GPUBuffer
-    matrixBindGroup: GPUBindGroup
-
     constructor(hash: number, renderPipeline: GPURenderPipeline) {
         this.hash = hash
         this.renderPipeline = renderPipeline
-
-        // Get ready model and scene matrix uniforms buffer
-        this.modelBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Model 4x4 matrix',
-            size: 4 * 4 * 4 + // 4 x 4 x float32 model matrix
-                4 * 4 * 4, // 4 x 4 x float32 inv trans matrix (stride has to be min 4xfloat32)
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
-
-        this.sceneBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Scene Data',
-            size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
-                4 * 4 * 4 + // 4 x 4 float32 projection matrix
-                3 * 4,      // 3 * float32 camera position
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
-
-        const entries = [{
-            binding: 0, // model data
-            resource: {
-                buffer: this.modelBuffer
-            }
-        }, {
-            binding: 1, // scene data
-            resource: {
-                buffer: this.sceneBuffer
-            }
-        }]
-
-        this.matrixBindGroup = OBI.device.createBindGroup({
-            label: 'matrix bind group',
-            layout: this.renderPipeline.getBindGroupLayout(0),
-            entries: entries
-        })
     }
 }

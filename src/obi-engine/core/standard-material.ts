@@ -5,7 +5,6 @@ import OBI from "./obi"
 import { Lighting, ShaderLibrary } from "./shader-library"
 import Scene from "./scene"
 import Shader from "./shader"
-import StandardShader from "./standard-shader"
 import { Texture } from "./texture"
 
 export default class StandardMaterial extends Material {
@@ -18,7 +17,6 @@ export default class StandardMaterial extends Material {
     heightMap: Texture
     aoMap: Texture
     emmissiveMap: Texture
-
 
     constructor(tint: vec4) {
         super()
@@ -39,12 +37,17 @@ export default class StandardMaterial extends Material {
         super.updateFlags()
     }
 
+    hasTextures(){
+        return !!this.albedoMap || !!this.normalMap || !!this.roughnessMap || !!this.metallicMap || !!this.heightMap  || !!this.aoMap || !!this.emmissiveMap 
+    }
+
     validate(): void {
         this.updateFlags()
         this.shader = ShaderLibrary.getStandardShader(this.flags)
         if (this.shader) {
             this.status = MaterialStatus.Valid
         }
+        this.createSceneBindGroup()
         this.createTextureBindGroup()
     }
 
@@ -129,92 +132,54 @@ export default class StandardMaterial extends Material {
             })
         }
 
-        (this.shader as StandardShader).materialBindGroup = OBI.device.createBindGroup({
+        this.texturesBindGroup = OBI.device.createBindGroup({
             label: 'Texture Group with Texture/Sampler',
-            layout: this.shader.renderPipeline.getBindGroupLayout(1),
-            entries: entries
-        })
-    }
-
-    bindScene(scene: Scene) {
-        super.bindScene(scene)
-
-        if (this.lighting === Lighting.Unlit)
-            return
-
-        (this.shader as StandardShader).pointLightBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer for lighting data',
-            size: 3 * 4 * 4 * 3, // 3 * vec4<float32> * 3 point lights
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
-
-        const entries: GPUBindGroupEntry[] = []
-
-        entries.push({
-            binding: 0, // the directional and ambient info
-            resource: {
-                buffer: scene.dirAmbientBuffer
-            }
-        })
-
-        if (this.receivesShadows) {
-            entries.push({
-                binding: 1,
-                resource: scene.dirLight.shadowProjector.shadowMapView
-            })
-            entries.push({
-                binding: 2,
-                resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
-                    compare: 'less',
-                })
-            })
-            entries.push({
-                binding: 3,
-                resource: { buffer: (this.shader as StandardShader).lightMatrixBuffer }
-            })
-        }
-
-        entries.push({
-            binding: 4, // the point light info
-            resource: {
-                buffer: (this.shader as StandardShader).pointLightBuffer
-            }
-        });
-
-        (this.shader as StandardShader).lightingBindGroup = OBI.device.createBindGroup({
-            label: 'Light Binding Group',
             layout: this.shader.renderPipeline.getBindGroupLayout(2),
             entries: entries
         })
     }
 
-    updatePointLightBuffer(lights: Light[], modelPosition: vec3) {
-        if (this.lighting === Lighting.Unlit)
-            return
-        if (lights.length >= 3) { // if less than 4 point lights, no sorting required
-            const pointLightSortingFunction = (lightA: Light, lightB: Light) => {
-                const distA = vec3.sqrDist(modelPosition, lightA.transform.position)
-                const distB = vec3.sqrDist(modelPosition, lightB.transform.position)
-                if (distA < distB) {
-                    return -1;
-                }
-                if (distA > distB) {
-                    return 1;
-                }
-                return 0;
-            }
-            lights.sort(pointLightSortingFunction)
-        }
+    createSceneBindGroup(){
+    const entries: GPUBindGroupEntry[] = []
 
-        const lightData = new Float32Array(3 * 3 * 4) // 3 point lights with 3 vec4
-        lightData.fill(0)
-        for (let i = 0; i < lights.length && i < 3; i++) {
-            lightData.set(lights[i].transform.position, i * 12)
-            lightData.set(lights[i].color, i * 12 + 4)
-            lightData[i * 12 + 8] = lights[i].range
-            lightData[i * 12 + 9] = lights[i].intensity
+    entries.push({
+        binding: 0, // the directional and ambient info
+        resource: {
+            buffer: this.scene.mainCamera.cameraUniformBuffer
         }
+    })
 
-        OBI.device.queue.writeBuffer((this.shader as StandardShader).pointLightBuffer, 0, lightData)
+    if (this.lighting === Lighting.Unlit)
+        return
+
+    entries.push({
+        binding: 1, // the directional and ambient info
+        resource: {
+            buffer: this.scene.dirAmbientBuffer
+        }
+    })
+
+    if (this.receivesShadows) {
+        entries.push({
+            binding: 2,
+            resource: this.scene.dirLight.shadowProjector.shadowMapView
+        })
+        entries.push({
+            binding: 3,
+            resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
+                compare: 'less',
+            })
+        })
+        entries.push({
+            binding: 4,
+            resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
+        })
+    }
+
+    this.sceneBindGroup = OBI.device.createBindGroup({
+        label: 'Scene Binding Group',
+        layout: this.shader.renderPipeline.getBindGroupLayout(1),
+        entries: entries
+    })
     }
 }

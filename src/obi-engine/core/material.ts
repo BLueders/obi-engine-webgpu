@@ -16,6 +16,9 @@ export class Material{
 
     status: MaterialStatus
 
+    texturesBindGroup: GPUBindGroup
+    sceneBindGroup: GPUBindGroup
+
     constructor(){
         this.flags = new Set<string>()
         this.flags.add(Shader.BLINNPHONG_LIGHTING_FLAG)

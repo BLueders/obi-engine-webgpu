@@ -43,14 +43,17 @@ async function run() {
 
     const NUM_MODELS = 5.0
 
+
+    const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+    // mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
+    // mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
+    mat.albedoMap = albedoMap
+    mat.lighting = Lighting.BlinnPhong
+    mat.receivesShadows = true
+    mat.castShadows = true
     for (let i = 0; i < NUM_MODELS; i++) {
         for (let j = 0; j < NUM_MODELS; j++) {
-            const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-            mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-            mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-            mat.lighting = Lighting.BlinnPhong
-            mat.receivesShadows = true
-            mat.castShadows = true
+
 
             const model = new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - NUM_MODELS, 0, j * 2 - NUM_MODELS))
             //model.renderer.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
@@ -59,12 +62,7 @@ async function run() {
         }
     }
 
-    let mat = new StandardMaterial(vec4.fromValues(0.7, 0.7, 0.7, 1))
-    mat.albedoMap = albedoMap 
-    mat.lighting = Lighting.BlinnPhong
-    mat.receivesShadows = true
-    mat.castShadows = false
-    const model = new Model(Primitives.getPlaneMesh(20,20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10,1,10))
+    const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10, 1, 10))
     scene.addModel(model)
 
     // const LIGHTCOUNT = 10
@@ -81,7 +79,7 @@ async function run() {
 
     function frame() {
 
-        quat.fromEuler(scene.dirLight.transform.rotation, 75, performance.now()/50, 0)
+        quat.fromEuler(scene.dirLight.transform.rotation, 75, performance.now() / 50, 0)
 
         Input.update()
         controller.update()

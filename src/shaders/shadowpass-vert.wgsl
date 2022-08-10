@@ -1,7 +1,7 @@
 #import utils.wgsl
 
 @group(0) @binding(0) var<uniform> model : Model;
-@group(0) @binding(1) var<uniform> scene : Scene;
+@group(1) @binding(0) var<uniform> scene : Scene;
 
 @vertex
 fn main(in : VertexIn) -> @builtin(position) vec4<f32>{

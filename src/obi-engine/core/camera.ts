@@ -3,6 +3,7 @@
 import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import Input from "../utils/input";
 import OBI from "./obi";
+import Shader from "./shader";
 
 /** A Perspective Camera to render 3D geometry
 */
@@ -17,6 +18,7 @@ export class Camera {
     size: any;
 
     depthMap: GPUTexture
+    cameraUniformBuffer: GPUBuffer
 
     /** Creates a new PerspectiveCamera object
     * @param {number} fov the field of view of the camera, default 45 degrees.
@@ -40,6 +42,14 @@ export class Camera {
             format: "depth24plus",
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         } as GPUTextureDescriptor)
+
+        this.cameraUniformBuffer = OBI.device.createBuffer({
+            label: 'GPUBuffer Camera Data',
+            size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
+                4 * 4 * 4 + // 4 x 4 float32 projection matrix
+                3 * 4,      // 3 * float32 camera position
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
     }
 
     resize(){
