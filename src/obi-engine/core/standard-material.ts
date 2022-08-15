@@ -1,185 +1,178 @@
-import { vec3, vec4 } from "gl-matrix"
-import { Light } from "./light"
-import { Material, MaterialStatus } from "./material"
 import OBI from "./obi"
 import { Lighting, ShaderLibrary } from "./shader-library"
-import Scene from "./scene"
 import Shader from "./shader"
 import { Texture } from "./texture"
+import LitMaterial from "./lit-material"
+import { vec4 } from "gl-matrix"
+import { MaterialStatus } from "./material"
+import { BufferUniform, RGBASamplerUniform, RGBATextureUniform, SamplerUniform, TextureUniform } from "./uniform"
+import TypeSize from "../utils/typesize"
 
-export default class StandardMaterial extends Material {
+export default class StandardMaterial extends LitMaterial {
+
+    static MATERIAL_GROUP = 2
+    static TINT_BINDING = 0
+    static SAMPLER_BINDING = 1
+    static ALBEDO_MAP_BINDING = 2
+    static NORMAL_MAP_BINDING = 3
+    static ROUGHNESS_MAP_BINDING = 4
+    static METALLIC_MAP_BINDING = 5
+    static HEIGHT_MAP_BINDING = 6
+    static AO_MAP_BINDING = 7
+    static EMISSIVE_MAP_BINDING = 8
 
     tint: vec4
-    albedoMap: Texture
-    normalMap: Texture
-    roughnessMap: Texture
-    metallicMap: Texture
-    heightMap: Texture
-    aoMap: Texture
-    emmissiveMap: Texture
 
     constructor(tint: vec4) {
         super()
         this.tint = tint
         this.flags.add(Shader.HAS_TINT_COLOR_FLAG)
+        this.addUniform(new BufferUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.TINT_BINDING, GPUShaderStage.FRAGMENT, TypeSize.float32x4, "Tint Color"))
+        this.setUniformBufferValues(StandardMaterial.MATERIAL_GROUP, StandardMaterial.TINT_BINDING, 0, tint as Float32Array)
     }
 
     updateFlags(): void {
-        this.setFlag(!!this.tint, Shader.HAS_TINT_COLOR_FLAG)
-        this.setFlag(!!this.albedoMap, Shader.HAS_ALBEDO_MAP_FLAG)
-        this.setFlag(!!this.normalMap, Shader.HAS_NORMAL_MAP_FLAG)
-        this.setFlag(!!this.roughnessMap, Shader.HAS_ROUGHNESS_MAP_FLAG)
-        this.setFlag(!!this.metallicMap, Shader.HAS_METALLIC_MAP_FLAG)
-        this.setFlag(!!this.heightMap, Shader.HAS_HEIGHT_MAP_FLAG)
-        this.setFlag(!!this.aoMap, Shader.HAS_AO_MAP_FLAG)
-        this.setFlag(!!this.emmissiveMap, Shader.HAS_EMISSIVE_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.TINT_BINDING), Shader.HAS_TINT_COLOR_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ALBEDO_MAP_BINDING), Shader.HAS_ALBEDO_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.NORMAL_MAP_BINDING), Shader.HAS_NORMAL_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ROUGHNESS_MAP_BINDING), Shader.HAS_ROUGHNESS_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.METALLIC_MAP_BINDING), Shader.HAS_METALLIC_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.HEIGHT_MAP_BINDING), Shader.HAS_HEIGHT_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.AO_MAP_BINDING), Shader.HAS_AO_MAP_FLAG)
+        this.setFlag(!!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.EMISSIVE_MAP_BINDING), Shader.HAS_EMISSIVE_MAP_FLAG)
 
         super.updateFlags()
     }
 
+    setAlbedoMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ALBEDO_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.ALBEDO_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Albedo map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ALBEDO_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setNormalMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.NORMAL_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.NORMAL_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Normal map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.NORMAL_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setRoughnessMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ROUGHNESS_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.ROUGHNESS_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Roughness map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.ROUGHNESS_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setMetallicMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.METALLIC_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.METALLIC_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Metallic map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.METALLIC_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setHeightMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.HEIGHT_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.HEIGHT_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Height map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.HEIGHT_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setAOMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.AO_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.AO_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "AO map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.AO_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    setEmissiveMap(texture: Texture) {
+        this.checkSamplerExists()
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.EMISSIVE_MAP_BINDING)) {
+            this.addUniform(new RGBATextureUniform(StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.EMISSIVE_MAP_BINDING,
+                GPUShaderStage.FRAGMENT,
+                texture,
+                "Emissive map Uniform"))
+        } else {
+            this.setUniformTexture(StandardMaterial.MATERIAL_GROUP, StandardMaterial.EMISSIVE_MAP_BINDING, texture)
+        }
+        this.status = MaterialStatus.NeedsUpdate
+    }
+
+    checkSamplerExists() {
+        if (!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.SAMPLER_BINDING)) {
+            this.addUniform(new RGBASamplerUniform(
+                StandardMaterial.MATERIAL_GROUP,
+                StandardMaterial.SAMPLER_BINDING,
+                GPUShaderStage.FRAGMENT,
+                "Standard Sampler"))
+            this.status = MaterialStatus.NeedsUpdate
+        }
+    }
+
+    setTint(tint: vec4) {
+        this.tint = tint
+        this.setUniformBufferValues(StandardMaterial.MATERIAL_GROUP, StandardMaterial.TINT_BINDING, 0, tint as Float32Array)
+    }
+
     hasTextures() {
-        return !!this.albedoMap || !!this.normalMap || !!this.roughnessMap || !!this.metallicMap || !!this.heightMap || !!this.aoMap || !!this.emmissiveMap
+        return !!this.getUniform(StandardMaterial.MATERIAL_GROUP, StandardMaterial.SAMPLER_BINDING)
     }
 
     validate(): void {
+        this.uniformLayouts = this.getUniformLayouts()
         this.updateFlags()
         this.shader = ShaderLibrary.getStandardShader(this.flags)
         if (this.shader) {
             this.status = MaterialStatus.Valid
         }
         this.createSceneBindGroup()
-        this.createMaterialBindGroup()
-    }
-
-    createMaterialBindGroup() {
-        // Create a sampler with linear filtering for smooth interpolation.
-        const sampler = OBI.device.createSampler({
-            addressModeU: 'repeat',
-            addressModeV: 'repeat',
-            magFilter: 'linear',
-            minFilter: 'linear'
-        })
-
-        // create color buffer
-        const colorBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer store rgba color',
-            size: 4 * 4, // 4 * float32
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        })
-        OBI.device.queue.writeBuffer(colorBuffer, 0, this.tint as Float32Array)
-
-        const entries = []
-        entries.push({
-            binding: 0, // the color buffer
-            resource: {
-                buffer: colorBuffer
-            }
-        })
-
-        if (this.hasTextures()) {
-            entries.push({
-                binding: 1, // the sampler
-                resource: sampler
-            })
+        this.createMaterialBindGroups()
+        if (this.shader) {
+            this.status = MaterialStatus.Valid
         }
-
-        if (this.albedoMap) {
-            entries.push({
-                binding: 2, // albedo texture
-                resource: this.albedoMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.normalMap) {
-            entries.push({
-                binding: 3, // normalMap texture
-                resource: this.normalMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.roughnessMap) {
-            entries.push({
-                binding: 4, // roughnessMap texture
-                resource: this.roughnessMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.metallicMap) {
-            entries.push({
-                binding: 5, // metallicMap texture
-                resource: this.metallicMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.heightMap) {
-            entries.push({
-                binding: 6, // heightMap texture
-                resource: this.heightMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.aoMap) {
-            entries.push({
-                binding: 7, // aoMap texture
-                resource: this.aoMap.gpuTexture.createView()
-            })
-        }
-
-        if (this.emmissiveMap) {
-            entries.push({
-                binding: 8, // emmissiveMap texture
-                resource: this.emmissiveMap.gpuTexture.createView()
-            })
-        }
-
-        const materialBindGroupLayout = OBI.device.createBindGroupLayout({entries: Shader.getStandardMaterialBindGroupEntries(this.flags)})
-        this.materialBindGroup = OBI.device.createBindGroup({
-            label: 'Material Group with Texture/Sampler',
-            layout: materialBindGroupLayout,
-            entries: entries
-        })
-    }
-
-    createSceneBindGroup() {
-        const entries: GPUBindGroupEntry[] = []
-
-        entries.push({
-            binding: 0, // the directional and ambient info
-            resource: {
-                buffer: this.scene.mainCamera.cameraUniformBuffer
-            }
-        })
-
-        if (this.lighting === Lighting.BlinnPhong)
-            entries.push({
-                binding: 1, // the directional and ambient info
-                resource: {
-                    buffer: this.scene.dirAmbientBuffer
-                }
-            })
-
-        if (this.receivesShadows) {
-            entries.push({
-                binding: 2,
-                resource: this.scene.dirLight.shadowProjector.shadowMapView
-            })
-            entries.push({
-                binding: 3,
-                resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
-                    compare: 'less',
-                })
-            })
-            entries.push({
-                binding: 4,
-                resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
-            })
-        }
-
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({entries: Shader.getStandardSceneBindGroupEntries(this.flags)})
-        this.sceneBindGroup = OBI.device.createBindGroup({
-            label: 'Scene Binding Group',
-            layout: sceneBindGroupLayout,
-            entries: entries
-        })
     }
 }

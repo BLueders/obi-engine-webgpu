@@ -3,6 +3,7 @@ import Mesh from "./mesh";
 import Shader from "./shader";
 import { Lighting } from "./shader-library";
 import Scene from "./scene";
+import { Uniform } from "./uniform";
 
 export class Material{
     shader:Shader
@@ -16,13 +17,17 @@ export class Material{
 
     status: MaterialStatus
 
-    materialBindGroup: GPUBindGroup
+    uniforms: Map<number, Map<number, Uniform>>
+    uniformLayouts: Map<number, GPUBindGroupLayout>
+    uniformBindGroups: Map<number, GPUBindGroup>
+    
     sceneBindGroup: GPUBindGroup
 
     constructor(){
         this.flags = new Set<string>()
-        this.flags.add(Shader.BLINNPHONG_LIGHTING_FLAG)
-        this.flags.add(Shader.RECEIVE_SHADOWS_FLAG)
+        this.uniforms = new Map<number, Map<number, Uniform>>()
+        this.uniformLayouts = new Map<number, GPUBindGroupLayout>()
+        this.uniformBindGroups = new Map<number, GPUBindGroup>()
         this.flags.add(Shader.CAST_SHADOWS_FLAG)
         this.status = MaterialStatus.NeedsUpdate
     }
@@ -31,6 +36,12 @@ export class Material{
         this.setFlag(this.receivesShadows, Shader.RECEIVE_SHADOWS_FLAG)
         this.setFlag(this.castShadows, Shader.CAST_SHADOWS_FLAG)
         this.setFlag(this.lighting == Lighting.BlinnPhong, Shader.BLINNPHONG_LIGHTING_FLAG)
+
+        // sort to avoid hash dublicates when making shader
+        // TODO fix hash to not depend on order in set
+        const sortedArray = Array.from(this.flags).sort()
+        this.flags.clear()
+        sortedArray.forEach(value => this.flags.add(value))
     }
 
     setFlag(value:boolean, flag:string){

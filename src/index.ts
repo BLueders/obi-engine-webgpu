@@ -48,10 +48,8 @@ async function run() {
     const materials: StandardMaterial[] = []
     for (let i = 0; i < NUM_MATERIALS; i++) {
         const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-        //mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-        mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-        mat.albedoMap = albedoMap
-        //mat.normalMap = undefined
+        Math.random() > 0.5 ? mat.setAlbedoMap(albedoMap) : undefined
+        Math.random() > 0.5 ? mat.setNormalMap(normalMap) : undefined
         mat.lighting = Lighting.BlinnPhong
         mat.receivesShadows = true
         mat.castShadows = true
@@ -64,14 +62,13 @@ async function run() {
             const mat = materials[Math.floor(Math.random() * NUM_MATERIALS)]
 
             const model = new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - NUM_MODELS, 0, j * 2 - NUM_MODELS))
-            //model.renderer.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
-            //model.renderer.receivesShadows = model.renderer.lighting == Lighting.BlinnPhong
+
             scene.addModel(model)
         }
     }
 
     const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-    mat.albedoMap = albedoMap
+    mat.setAlbedoMap(albedoMap)
     mat.lighting = Lighting.BlinnPhong
     mat.receivesShadows = true
     mat.castShadows = false
@@ -91,6 +88,13 @@ async function run() {
     scene.prepare()
 
     function frame() {
+
+        if(Input.keyDown("space")){
+            for (let i = 0; i < NUM_MATERIALS; i++) {
+                materials[i].setAlbedoMap(albedoMap)
+                materials[i].setNormalMap(normalMap)
+            }
+        }
 
         quat.fromEuler(scene.dirLight.transform.rotation, 75, performance.now() / 50, 0)
 

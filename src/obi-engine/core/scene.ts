@@ -3,7 +3,7 @@ import { toMat4 } from "../utils/utils"
 import { Camera } from "./camera"
 import Environment from "./environment"
 import { Light, LightType } from "./light"
-import { Material } from "./material"
+import { Material, MaterialStatus } from "./material"
 import Mesh from "./mesh"
 import Model from "./model"
 import OBI from "./obi"
@@ -142,10 +142,16 @@ export default class Scene {
 
         this.materials.forEach((meshes, material) => {
 
+            if(material.status != MaterialStatus.Valid){
+                material.validate()
+            }
+
             renderPassEncoder.setPipeline(material.shader.renderPipeline)
 
             renderPassEncoder.setBindGroup(1, material.sceneBindGroup)
-            renderPassEncoder.setBindGroup(2, material.materialBindGroup)
+            const standardMat = material as StandardMaterial
+            if(standardMat.uniformBindGroups.has(2))
+                renderPassEncoder.setBindGroup(2, standardMat.uniformBindGroups.get(2))
 
             meshes.forEach((models, mesh) => {
 

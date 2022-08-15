@@ -6,48 +6,48 @@ import { Texture } from "./texture"
 import { Uniform, BufferUniform, TextureUniform, SamplerUniform } from "./uniform"
 
 export default class LitMaterial extends Material {
-    uniforms: Map<number, Map<number, Uniform>>
-    uniformLayouts: Map<number, GPUBindGroupLayout>
-    uniformBindGroups: Map<number, GPUBindGroup>
 
     constructor() {
         super()
-        this.uniforms = new Map<number, Map<number, Uniform>>()
-        this.uniformLayouts = new Map<number, GPUBindGroupLayout>()
-        this.uniformBindGroups = new Map<number, GPUBindGroup>()
+        this.flags.add(Shader.BLINNPHONG_LIGHTING_FLAG)
+        this.flags.add(Shader.RECEIVE_SHADOWS_FLAG)
     }
 
     validate(): void {
         this.uniformLayouts = this.getUniformLayouts()
         this.shader = ShaderLibrary.getCustomShader(this.flags, this.uniformLayouts)
+        this.createSceneBindGroup()
+        this.createMaterialBindGroups()
         if (this.shader) {
             this.status = MaterialStatus.Valid
         }
-        this.createSceneBindGroup()
-        this.createMaterialBindGroups()
     }
 
-    addUniform(group:number, binding:number, uniform:Uniform){
-        if(this.uniforms.get(group).get(binding))
-            throw new Error(`Another Uniform is already bound to group: ${group}, binding: ${binding}. ${JSON.stringify(this.uniforms.get(group).get(binding))}`)
-        if(!this.uniforms.get(group))
-            this.uniforms.set(group, new Map<number,Uniform>())
-        this.uniforms.get(group).set(binding, uniform)
+    addUniform(uniform: Uniform) {
+        if(!this.uniforms.get(uniform.group))
+            this.uniforms.set(uniform.group, new Map<number, Uniform>())
+        if (this.uniforms.get(uniform.group).get(uniform.binding))
+            throw new Error(`Another Uniform is already bound to group: ${uniform.group}, binding: ${uniform.binding}. ${JSON.stringify(this.uniforms.get(uniform.group).get(uniform.binding))}`)
+        if (!this.uniforms.get(uniform.group))
+            this.uniforms.set(uniform.group, new Map<number, Uniform>())
+        this.uniforms.get(uniform.group).set(uniform.binding, uniform)
+        this.status = MaterialStatus.NeedsUpdate
     }
 
-    getUniform<T>(group:number, binding:number) : T{
+    getUniform<T>(group: number, binding: number): T {
         const uniform = this.uniforms.get(group).get(binding)
         return uniform as any
     }
 
-    setUniformBufferValues(group:number, binding:number, bufferOffset: number, data: BufferSource | SharedArrayBuffer, dataOffset?: number, size?: number){
+    setUniformBufferValues(group: number, binding: number, bufferOffset: number, data: BufferSource | SharedArrayBuffer, dataOffset?: number, size?: number) {
         const uniform = this.uniforms.get(group).get(binding) as BufferUniform
         OBI.device.queue.writeBuffer(uniform.buffer, bufferOffset, data, dataOffset, size)
     }
 
-    setUniformTexture(group:number, binding:number, texture:Texture){
+    setUniformTexture(group: number, binding: number, texture: Texture) {
         const uniform = this.uniforms.get(group).get(binding) as TextureUniform
         uniform.texture = texture
+        this.status = MaterialStatus.NeedsUpdate
     }
 
     createMaterialBindGroups() {
@@ -123,7 +123,7 @@ export default class LitMaterial extends Material {
             })
         }
 
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({entries: Shader.getStandardSceneBindGroupEntries(this.flags)})
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(this.flags) })
         this.sceneBindGroup = OBI.device.createBindGroup({
             label: 'Scene Binding Group',
             layout: sceneBindGroupLayout,
@@ -132,6 +132,7 @@ export default class LitMaterial extends Material {
     }
 
     getUniformLayouts() {
+      
         const uniformLayoutGroups = new Map<number, GPUBindGroupLayout>()
         this.uniforms.forEach((uniformGroup, groupID) => {
 
