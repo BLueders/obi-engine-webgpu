@@ -48,7 +48,7 @@ export default class Model {
             }
         }]
 
-        const modelBindGroupLayoutEntries = [Shader.DEFAULT_MODEL_BINDGROUPENTRY]
+        const modelBindGroupLayoutEntries = [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]
 
         if(this.material.lighting == Lighting.BlinnPhong){
             modelBindGroupLayoutEntries.push({
@@ -76,7 +76,7 @@ export default class Model {
 
         this.shadowPassBindGroup = OBI.device.createBindGroup({
             label: 'shadow pass model bind group',
-            layout: OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPENTRY]}),
+            layout: OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]}),
             entries: [{
                 binding: 0, // model data
                 resource: {

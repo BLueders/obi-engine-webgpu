@@ -132,7 +132,7 @@ export default class StandardMaterial extends Material {
             })
         }
 
-        const materialBindGroupLayout = this.shader.renderPipeline.getBindGroupLayout(2)
+        const materialBindGroupLayout = OBI.device.createBindGroupLayout({entries: Shader.getStandardMaterialBindGroupEntries(this.flags)})
         this.materialBindGroup = OBI.device.createBindGroup({
             label: 'Material Group with Texture/Sampler',
             layout: materialBindGroupLayout,
@@ -175,9 +175,10 @@ export default class StandardMaterial extends Material {
             })
         }
 
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({entries: Shader.getStandardSceneBindGroupEntries(this.flags)})
         this.sceneBindGroup = OBI.device.createBindGroup({
             label: 'Scene Binding Group',
-            layout: this.shader.renderPipeline.getBindGroupLayout(1),
+            layout: sceneBindGroupLayout,
             entries: entries
         })
     }

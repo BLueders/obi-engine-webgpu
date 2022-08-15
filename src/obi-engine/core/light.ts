@@ -94,7 +94,7 @@ class ShadowProjector {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
-        const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPENTRY]})
+        const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]})
         this.shadowCameraBindGroup = OBI.device.createBindGroup({
             label: 'Shadow Camera Bind Group',
             layout: shadowCameraBindGroupLayout,

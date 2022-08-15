@@ -20,129 +20,39 @@ export class ShaderLibrary {
             return this.shaderCache.get(hash)
 
         // Make bind group layouts
-        const modelBindGroupEntries = [Shader.DEFAULT_MODEL_BINDGROUPENTRY]
-        const sceneBindGroupEntries = [Shader.DEFAULT_CAMERA_BINDGROUPENTRY]
-        if (flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)) {
-            sceneBindGroupEntries.push(Shader.DEFAULT_DIRLIGHTING_BINDGROUPENTRY)
-            modelBindGroupEntries.push({
-                binding: 1,
-                visibility: GPUShaderStage.FRAGMENT,
-                buffer: {
-                    type: 'uniform',
-                }
-            })
-        }
-        if (flags.has(Shader.RECEIVE_SHADOWS_FLAG)) {
-            Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))
-        }
-        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: modelBindGroupEntries })
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: sceneBindGroupEntries })
-
-        const materialBindGroupEntries: GPUBindGroupLayoutEntry[] = []
-
-        materialBindGroupEntries.push({
-            binding: 0,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: {
-                type: 'uniform',
-            }
-        })
-
-        const hasTextures = flags.has(Shader.HAS_ALBEDO_MAP_FLAG) || flags.has(Shader.HAS_NORMAL_MAP_FLAG) ||
-            flags.has(Shader.HAS_ROUGHNESS_MAP_FLAG) || flags.has(Shader.HAS_METALLIC_MAP_FLAG) ||
-            flags.has(Shader.HAS_AO_MAP_FLAG) || flags.has(Shader.HAS_HEIGHT_MAP_FLAG) ||
-            flags.has(Shader.HAS_EMISSIVE_MAP_FLAG)
-
-        if (hasTextures) {
-            materialBindGroupEntries.push({
-                binding: 1,
-                visibility: GPUShaderStage.FRAGMENT,
-                sampler: {
-                    type: 'filtering'
-                },
-            })
-        }
-
-        if (flags.has(Shader.HAS_ALBEDO_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 2,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_NORMAL_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 3,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_ROUGHNESS_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 4,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_METALLIC_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 5,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_HEIGHT_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 6,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_AO_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 7,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        if (flags.has(Shader.HAS_EMISSIVE_MAP_FLAG)) {
-            materialBindGroupEntries.push({
-                binding: 8,
-                visibility: GPUShaderStage.FRAGMENT,
-                texture: {
-                    sampleType: 'float',
-                    viewDimension: '2d'
-                }
-            })
-        }
-
-        const materialBindGroupLayout = OBI.device.createBindGroupLayout({ entries: materialBindGroupEntries })
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(flags) })
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(flags) })
+        const materialBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardMaterialBindGroupEntries(flags) })
 
         const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, Shader.DEFAULT_DEPTHSTENCIL_STATE, [modelBindGroupLayout, sceneBindGroupLayout, materialBindGroupLayout])
+        console.log("Created Standard Shader variant for: " + Array.from(flags.values()))
+
+        const shader = new Shader(hash, renderPipeline)
+        this.shaderCache.set(hash, shader)
+        return shader
+    }
+
+    static getCustomShader(flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>): Shader {
+        const label = "OBI Custom Material Shader "
+
+        const hash = stringHash(label + Array.from(flags.values()))
+
+        if (this.shaderCache.has(hash))
+            return this.shaderCache.get(hash)
+
+        // Make bind group layouts
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(flags) })
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(flags) })
+        const bindgroupLayouts = [modelBindGroupLayout, sceneBindGroupLayout]
+        // push group 2 if exists, else push empty, to be able to push 3 if exists
+        if (materialBindGroupLayouts.has(2))
+            bindgroupLayouts.push(materialBindGroupLayouts.get(2))
+        else
+            bindgroupLayouts.push(OBI.device.createBindGroupLayout({ entries: [] }))
+        if (materialBindGroupLayouts.has(3))
+            bindgroupLayouts.push(materialBindGroupLayouts.get(3))
+
+        const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, Shader.DEFAULT_DEPTHSTENCIL_STATE, bindgroupLayouts)
         console.log("Created Standard Shader variant for: " + Array.from(flags.values()))
 
         const shader = new Shader(hash, renderPipeline)
@@ -164,10 +74,12 @@ export class ShaderLibrary {
             format: 'depth32float',
         }
 
-        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_MODEL_BINDGROUPENTRY] })
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPENTRY] })
+        const emtpyFlags = new Set<string>()
 
-        const renderPipeline = this.createPipelineWithFlags(label, new Set<string>(), shadowShaderSrc, undefined, depthStencil, [modelBindGroupLayout, sceneBindGroupLayout])
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(emtpyFlags) })
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(emtpyFlags) })
+
+        const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowShaderSrc, undefined, depthStencil, [modelBindGroupLayout, sceneBindGroupLayout])
         console.log("Created Shadow Shader")
 
         const shader = new Shader(hash, renderPipeline)
