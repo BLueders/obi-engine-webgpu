@@ -48,9 +48,12 @@ export default class Scene {
     }
 
     prepare() {
-        this.materials.forEach((mesh, material) => {
+        this.materials.forEach((meshes, material) => {
             material.bindScene(this)
             material.validate()
+            meshes.forEach((models, mesh)=>{
+                models.forEach(model => model.prepareBindGroups())
+            })
         })
     }
 
@@ -69,7 +72,7 @@ export default class Scene {
         OBI.device.queue.writeBuffer(this.mainCamera.cameraUniformBuffer, 64, this.mainCamera.projectionMatrix as Float32Array)
         OBI.device.queue.writeBuffer(this.mainCamera.cameraUniformBuffer, 128, this.mainCamera.getPosition() as Float32Array)
 
-        //OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
+        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixUniformBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
 
         // update model bufferdata
         this.materials.forEach((meshes, material) => {
@@ -107,7 +110,7 @@ export default class Scene {
                     if(!model.material.castShadows)
                         return
                     
-                    shadowPassEndcoder.setBindGroup(0, model.modelBindGroup)
+                    shadowPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
                     shadowPassEndcoder.setBindGroup(1, this.dirLight.shadowProjector.shadowCameraBindGroup)
                     shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
                 })
@@ -142,8 +145,7 @@ export default class Scene {
             renderPassEncoder.setPipeline(material.shader.renderPipeline)
 
             renderPassEncoder.setBindGroup(1, material.sceneBindGroup)
-            if(material instanceof StandardMaterial && material.hasTextures())
-                renderPassEncoder.setBindGroup(2, material.texturesBindGroup)
+            renderPassEncoder.setBindGroup(2, material.materialBindGroup)
 
             meshes.forEach((models, mesh) => {
 
@@ -154,7 +156,6 @@ export default class Scene {
                 models.forEach(model => {
 
                     renderPassEncoder.setBindGroup(0, model.modelBindGroup)
-                    renderPassEncoder.setBindGroup(3, model.pointLightBindGroup)
 
                     // draw vertex count of cube
                     renderPassEncoder.drawIndexed(model.mesh.vertexCount)

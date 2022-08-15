@@ -14,10 +14,10 @@ export default class Model {
 
     modelUniformBuffer: GPUBuffer
     modelBindGroup: GPUBindGroup
+    shadowPassBindGroup: GPUBindGroup
 
     //TODO this should be somewhere else
     pointLightUniformBuffer: GPUBuffer
-    pointLightBindGroup: GPUBindGroup
 
     constructor(mesh: Mesh, material: StandardMaterial, position?: vec3, rotation?: quat, scale?: vec3) {
         this.mesh = mesh
@@ -32,36 +32,51 @@ export default class Model {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
-        const modelBindGroupLayout = OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPENTRY]})
-        this.modelBindGroup = OBI.device.createBindGroup({
-            label: 'model bind group',
-            layout: modelBindGroupLayout,
-            entries: [{
-                binding: 0, // model data
-                resource: {
-                    buffer: this.modelUniformBuffer
-                }
-            }]
-        })
-
         this.pointLightUniformBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer for lighting data',
             size: 3 * 4 * 4 * 3, // 3 * vec4<float32> * 3 point lights
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
+    }
 
-        const pointLightBindGroupLayout = OBI.device.createBindGroupLayout({
-            entries: [{
-                binding: 0, 
+    prepareBindGroups(){
+
+        const modelBindGroupEntries = [{
+            binding: 0, // model data
+            resource: {
+                buffer: this.modelUniformBuffer
+            }
+        }]
+
+        const modelBindGroupLayoutEntries = [Shader.DEFAULT_MODEL_BINDGROUPENTRY]
+
+        if(this.material.lighting == Lighting.BlinnPhong){
+            modelBindGroupLayoutEntries.push({
+                binding: 1, 
                 visibility: GPUShaderStage.FRAGMENT, 
                 buffer: {
                   type: 'uniform',
                 },
-              }]
+              })
+            modelBindGroupEntries.push({
+                binding: 1, // point light data
+                resource: {
+                    buffer: this.pointLightUniformBuffer
+                }
+            })
+        }
+
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({entries: modelBindGroupLayoutEntries})
+
+        this.modelBindGroup = OBI.device.createBindGroup({
+            label: 'model bind group',
+            layout: modelBindGroupLayout,
+            entries: modelBindGroupEntries
         })
-        this.pointLightBindGroup = OBI.device.createBindGroup({
-            label: 'point light bind group',
-            layout: pointLightBindGroupLayout,
+
+        this.shadowPassBindGroup = OBI.device.createBindGroup({
+            label: 'shadow pass model bind group',
+            layout: OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPENTRY]}),
             entries: [{
                 binding: 0, // model data
                 resource: {

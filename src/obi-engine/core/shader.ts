@@ -18,20 +18,49 @@ export default class Shader {
     }
 
     static DEFAULT_MODEL_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
-            binding: 0, 
-            visibility: GPUShaderStage.VERTEX, 
-            buffer: {
-              type: 'uniform',
-            },
-          }
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+            type: 'uniform',
+        },
+    }
 
     static DEFAULT_CAMERA_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
-            binding: 0, 
-            visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, 
-            buffer: {
-              type: 'uniform',
-            },
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: {
+            type: 'uniform',
+        },
     }
+
+    static DEFAULT_DIRLIGHTING_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+            type: 'uniform',
+        },
+    }
+
+    static DEFAULT_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [{
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: {
+            sampleType: 'depth',
+            viewDimension: '2d'
+        }
+    }, {
+        binding: 3,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: {
+            type: 'comparison',
+        },
+    }, {
+        binding: 4,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+            type: 'uniform',
+        },
+    }]
 
 
     static HAS_TINT_COLOR_FLAG = "HAS_TINT_COLOR"

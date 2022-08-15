@@ -18,7 +18,9 @@
 @group(2) @binding(3) var normalMap : texture_2d<f32>;
 // @group(2) @binding(4) var emissiveMap : texture_2d<f32>;
 
-@group(3) @binding(0) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
+#if BLINNPHONG_LIGHTING
+@group(0) @binding(1) var<uniform> pointlightData : array<PointLightData,3>; // max 3 pointlights
+#endif
 
 @fragment
 fn main(in: VertexOut) -> @location(0) vec4<f32> {

@@ -31,14 +31,14 @@ export default class StandardMaterial extends Material {
         this.setFlag(!!this.roughnessMap, Shader.HAS_ROUGHNESS_MAP_FLAG)
         this.setFlag(!!this.metallicMap, Shader.HAS_METALLIC_MAP_FLAG)
         this.setFlag(!!this.heightMap, Shader.HAS_HEIGHT_MAP_FLAG)
-        this.setFlag(!!this.aoMap, Shader.HAS_NORMAL_MAP_FLAG)
+        this.setFlag(!!this.aoMap, Shader.HAS_AO_MAP_FLAG)
         this.setFlag(!!this.emmissiveMap, Shader.HAS_EMISSIVE_MAP_FLAG)
 
         super.updateFlags()
     }
 
-    hasTextures(){
-        return !!this.albedoMap || !!this.normalMap || !!this.roughnessMap || !!this.metallicMap || !!this.heightMap  || !!this.aoMap || !!this.emmissiveMap 
+    hasTextures() {
+        return !!this.albedoMap || !!this.normalMap || !!this.roughnessMap || !!this.metallicMap || !!this.heightMap || !!this.aoMap || !!this.emmissiveMap
     }
 
     validate(): void {
@@ -48,10 +48,10 @@ export default class StandardMaterial extends Material {
             this.status = MaterialStatus.Valid
         }
         this.createSceneBindGroup()
-        this.createTextureBindGroup()
+        this.createMaterialBindGroup()
     }
 
-    createTextureBindGroup() {
+    createMaterialBindGroup() {
         // Create a sampler with linear filtering for smooth interpolation.
         const sampler = OBI.device.createSampler({
             addressModeU: 'repeat',
@@ -76,7 +76,7 @@ export default class StandardMaterial extends Material {
             }
         })
 
-        if (this.albedoMap || this.normalMap) {
+        if (this.hasTextures()) {
             entries.push({
                 binding: 1, // the sampler
                 resource: sampler
@@ -132,54 +132,53 @@ export default class StandardMaterial extends Material {
             })
         }
 
-        this.texturesBindGroup = OBI.device.createBindGroup({
-            label: 'Texture Group with Texture/Sampler',
-            layout: this.shader.renderPipeline.getBindGroupLayout(2),
+        const materialBindGroupLayout = this.shader.renderPipeline.getBindGroupLayout(2)
+        this.materialBindGroup = OBI.device.createBindGroup({
+            label: 'Material Group with Texture/Sampler',
+            layout: materialBindGroupLayout,
             entries: entries
         })
     }
 
-    createSceneBindGroup(){
-    const entries: GPUBindGroupEntry[] = []
+    createSceneBindGroup() {
+        const entries: GPUBindGroupEntry[] = []
 
-    entries.push({
-        binding: 0, // the directional and ambient info
-        resource: {
-            buffer: this.scene.mainCamera.cameraUniformBuffer
-        }
-    })
-
-    if (this.lighting === Lighting.Unlit)
-        return
-
-    entries.push({
-        binding: 1, // the directional and ambient info
-        resource: {
-            buffer: this.scene.dirAmbientBuffer
-        }
-    })
-
-    if (this.receivesShadows) {
         entries.push({
-            binding: 2,
-            resource: this.scene.dirLight.shadowProjector.shadowMapView
+            binding: 0, // the directional and ambient info
+            resource: {
+                buffer: this.scene.mainCamera.cameraUniformBuffer
+            }
         })
-        entries.push({
-            binding: 3,
-            resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
-                compare: 'less',
+
+        if (this.lighting === Lighting.BlinnPhong)
+            entries.push({
+                binding: 1, // the directional and ambient info
+                resource: {
+                    buffer: this.scene.dirAmbientBuffer
+                }
             })
-        })
-        entries.push({
-            binding: 4,
-            resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
-        })
-    }
 
-    this.sceneBindGroup = OBI.device.createBindGroup({
-        label: 'Scene Binding Group',
-        layout: this.shader.renderPipeline.getBindGroupLayout(1),
-        entries: entries
-    })
+        if (this.receivesShadows) {
+            entries.push({
+                binding: 2,
+                resource: this.scene.dirLight.shadowProjector.shadowMapView
+            })
+            entries.push({
+                binding: 3,
+                resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
+                    compare: 'less',
+                })
+            })
+            entries.push({
+                binding: 4,
+                resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
+            })
+        }
+
+        this.sceneBindGroup = OBI.device.createBindGroup({
+            label: 'Scene Binding Group',
+            layout: this.shader.renderPipeline.getBindGroupLayout(1),
+            entries: entries
+        })
     }
 }

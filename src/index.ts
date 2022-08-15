@@ -10,6 +10,7 @@ import Input from "./obi-engine/utils/input";
 import { Light, LightType } from "./obi-engine/core/light";
 import { Lighting } from "./obi-engine/core/shader-library";
 import Environment from "./obi-engine/core/environment";
+import { Material } from "./obi-engine/core/material";
 
 // This will execute the setup function once the whole document has been loaded.
 window.addEventListener("load", function () {
@@ -41,19 +42,26 @@ async function run() {
 
     const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
 
-    const NUM_MODELS = 5.0
+    const NUM_MODELS = 5
+    const NUM_MATERIALS = 5
+    
+    const materials: StandardMaterial[] = []
+    for (let i = 0; i < NUM_MATERIALS; i++) {
+        const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+        //mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
+        mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
+        mat.albedoMap = albedoMap
+        //mat.normalMap = undefined
+        mat.lighting = Lighting.BlinnPhong
+        mat.receivesShadows = true
+        mat.castShadows = true
 
+        materials.push(mat)
+    }
 
-    const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
-    // mat.albedoMap = Math.random() > 0.5 ? albedoMap : undefined
-    // mat.normalMap = Math.random() > 0.5 ? normalMap : undefined
-    mat.albedoMap = albedoMap
-    mat.lighting = Lighting.BlinnPhong
-    mat.receivesShadows = true
-    mat.castShadows = true
     for (let i = 0; i < NUM_MODELS; i++) {
         for (let j = 0; j < NUM_MODELS; j++) {
-
+            const mat = materials[Math.floor(Math.random() * NUM_MATERIALS)]
 
             const model = new Model(meshes[Math.floor(Math.random() * 4)], mat, vec3.fromValues(i * 2 - NUM_MODELS, 0, j * 2 - NUM_MODELS))
             //model.renderer.lighting = Math.random() > 0.5 ? Lighting.BlinnPhong : Lighting.Unlit
@@ -62,6 +70,11 @@ async function run() {
         }
     }
 
+    const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+    mat.albedoMap = albedoMap
+    mat.lighting = Lighting.BlinnPhong
+    mat.receivesShadows = true
+    mat.castShadows = false
     const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10, 1, 10))
     scene.addModel(model)
 

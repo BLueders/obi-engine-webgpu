@@ -16,7 +16,7 @@ export class Material{
 
     status: MaterialStatus
 
-    texturesBindGroup: GPUBindGroup
+    materialBindGroup: GPUBindGroup
     sceneBindGroup: GPUBindGroup
 
     constructor(){
