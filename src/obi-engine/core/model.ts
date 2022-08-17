@@ -28,7 +28,8 @@ export default class Model {
         this.modelUniformBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer Model 4x4 matrix',
             size: 4 * 4 * 4 + // 4 x 4 x float32 model matrix
-                4 * 4 * 4, // 4 x 4 x float32 inv trans matrix (stride has to be min 4xfloat32)
+                4 * 4 * 4 + // 4 x 4 x float32 inv trans matrix (stride has to be min 4xfloat32)
+                4 * 4 * 4, // 4 x 4 x float32 model view projection matrix
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
@@ -39,7 +40,7 @@ export default class Model {
         })
     }
 
-    prepareBindGroups(){
+    prepareBindGroups() {
 
         const modelBindGroupEntries = [{
             binding: 0, // model data
@@ -50,14 +51,14 @@ export default class Model {
 
         const modelBindGroupLayoutEntries = [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]
 
-        if(this.material.lighting == Lighting.BlinnPhong){
+        if (this.material.lighting == Lighting.BlinnPhong) {
             modelBindGroupLayoutEntries.push({
-                binding: 1, 
-                visibility: GPUShaderStage.FRAGMENT, 
+                binding: 1,
+                visibility: GPUShaderStage.FRAGMENT,
                 buffer: {
-                  type: 'uniform',
+                    type: 'uniform',
                 },
-              })
+            })
             modelBindGroupEntries.push({
                 binding: 1, // point light data
                 resource: {
@@ -66,7 +67,7 @@ export default class Model {
             })
         }
 
-        const modelBindGroupLayout = OBI.device.createBindGroupLayout({entries: modelBindGroupLayoutEntries})
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: modelBindGroupLayoutEntries })
 
         this.modelBindGroup = OBI.device.createBindGroup({
             label: 'model bind group',
@@ -76,7 +77,7 @@ export default class Model {
 
         this.shadowPassBindGroup = OBI.device.createBindGroup({
             label: 'shadow pass model bind group',
-            layout: OBI.device.createBindGroupLayout({entries: [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]}),
+            layout: OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY] }),
             entries: [{
                 binding: 0, // model data
                 resource: {

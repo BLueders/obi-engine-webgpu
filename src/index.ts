@@ -72,7 +72,7 @@ async function run() {
     mat.lighting = Lighting.BlinnPhong
     mat.receivesShadows = true
     mat.castShadows = false
-    const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -3, 0), quat.create(), vec3.fromValues(10, 1, 10))
+    const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -0.5, 0), quat.create(), vec3.fromValues(10, 1, 10))
     scene.addModel(model)
 
     // const LIGHTCOUNT = 10

@@ -25,5 +25,6 @@ struct Scene {
 
 struct Model {
     modelMatrix : mat4x4<f32>,
-    normalMatrix : mat4x4<f32> // has to be 4x4 because of min stride vec4<float32>
+    normalMatrix : mat4x4<f32>, // has to be 4x4 because of min stride vec4<float32>
+    mvpMatrix : mat4x4<f32>
 }

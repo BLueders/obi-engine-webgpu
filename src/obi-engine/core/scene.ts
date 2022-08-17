@@ -57,7 +57,10 @@ export default class Scene {
         })
     }
 
-    draw() {
+    draw(camera? : Camera) {
+
+        if(!camera)
+            camera = this.mainCamera
 
         this.updateAmbientDirLights()
 
@@ -75,11 +78,16 @@ export default class Scene {
         OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixUniformBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
 
         // update model bufferdata
+        const viewProjectionMatrix = mat4.clone(this.mainCamera.projectionMatrix)
+        mat4.mul(viewProjectionMatrix, viewProjectionMatrix, this.mainCamera.viewMatrix)
         this.materials.forEach((meshes, material) => {
             meshes.forEach((models, mesh) => {
                 models.forEach(model => {
                     OBI.device.queue.writeBuffer(model.modelUniformBuffer, 0, model.transform.modelMatrix as Float32Array)
                     OBI.device.queue.writeBuffer(model.modelUniformBuffer, 64, model.transform.normalMatrix as Float32Array)
+                    const mvpMatrix = mat4.clone(viewProjectionMatrix)
+                    mat4.mul(mvpMatrix, mvpMatrix, model.transform.modelMatrix)
+                    OBI.device.queue.writeBuffer(model.modelUniformBuffer, 128, mvpMatrix as Float32Array)
                     model.updatePointLightBuffer(this.pointlights)
                 })
             })
