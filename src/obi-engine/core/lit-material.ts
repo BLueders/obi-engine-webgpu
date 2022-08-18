@@ -16,7 +16,7 @@ export default class LitMaterial extends Material {
     validate(): void {
         this.uniformLayouts = this.getUniformLayouts()
         this.shader = ShaderLibrary.getCustomShader(this.flags, this.uniformLayouts)
-        this.createSceneBindGroup()
+        //this.createSceneBindGroup()
         this.createMaterialBindGroups()
         if (this.shader) {
             this.status = MaterialStatus.Valid

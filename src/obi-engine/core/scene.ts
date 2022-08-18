@@ -24,6 +24,7 @@ export default class Scene {
 
     dirAmbientBuffer: GPUBuffer
     materials: Map<Material, Map<Mesh, Model[]>>
+    sceneBindGroups: Map<Camera, SceneBindGroupSetup>
     shadowShader: Shader
 
     constructor(environment: Environment) {
@@ -31,6 +32,7 @@ export default class Scene {
 
         this.mainCamera = new Camera()
         this.materials = new Map<Material, Map<Mesh, Model[]>>()
+        this.sceneBindGroups = new Map<Camera, SceneBindGroupSetup>()
         this.shadowShader = ShaderLibrary.getShadowShader()
 
         this.pointlights = []
@@ -45,22 +47,26 @@ export default class Scene {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
         this.environment = environment
+        this.sceneBindGroups.set(this.mainCamera, new SceneBindGroupSetup(this, this.mainCamera))
     }
 
     prepare() {
         this.materials.forEach((meshes, material) => {
             material.bindScene(this)
             material.validate()
-            meshes.forEach((models, mesh)=>{
+            meshes.forEach((models, mesh) => {
                 models.forEach(model => model.prepareBindGroups())
             })
         })
     }
 
-    draw(camera? : Camera) {
+    draw(camera?: Camera) {
 
-        if(!camera)
+        if (!camera)
             camera = this.mainCamera
+        if(!this.sceneBindGroups.has(camera))
+            this.sceneBindGroups.set(camera, new SceneBindGroupSetup(this, camera))
+        const sceneBindGroup = this.sceneBindGroups.get(camera)
 
         this.updateAmbientDirLights()
 
@@ -69,17 +75,17 @@ export default class Scene {
 
         OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.shadowCameraUniformBuffer, 0, this.dirLight.shadowProjector.viewMatrix as Float32Array)
         OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.shadowCameraUniformBuffer, 64, this.dirLight.shadowProjector.projectionMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.shadowCameraUniformBuffer, 128, this.mainCamera.getPosition() as Float32Array)
+        OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.shadowCameraUniformBuffer, 128, camera.getPosition() as Float32Array)
 
-        OBI.device.queue.writeBuffer(this.mainCamera.cameraUniformBuffer, 0, this.mainCamera.viewMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.mainCamera.cameraUniformBuffer, 64, this.mainCamera.projectionMatrix as Float32Array)
-        OBI.device.queue.writeBuffer(this.mainCamera.cameraUniformBuffer, 128, this.mainCamera.getPosition() as Float32Array)
+        OBI.device.queue.writeBuffer(camera.cameraUniformBuffer, 0, camera.viewMatrix as Float32Array)
+        OBI.device.queue.writeBuffer(camera.cameraUniformBuffer, 64, camera.projectionMatrix as Float32Array)
+        OBI.device.queue.writeBuffer(camera.cameraUniformBuffer, 128, camera.getPosition() as Float32Array)
 
         OBI.device.queue.writeBuffer(this.dirLight.shadowProjector.lightMatrixUniformBuffer, 0, this.dirLight.shadowProjector.lightMatrix as Float32Array)
 
         // update model bufferdata
-        const viewProjectionMatrix = mat4.clone(this.mainCamera.projectionMatrix)
-        mat4.mul(viewProjectionMatrix, viewProjectionMatrix, this.mainCamera.viewMatrix)
+        const viewProjectionMatrix = mat4.clone(camera.projectionMatrix)
+        mat4.mul(viewProjectionMatrix, viewProjectionMatrix, camera.viewMatrix)
         this.materials.forEach((meshes, material) => {
             meshes.forEach((models, mesh) => {
                 models.forEach(model => {
@@ -115,9 +121,9 @@ export default class Scene {
                 shadowPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
                 shadowPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
                 models.forEach(model => {
-                    if(!model.material.castShadows)
+                    if (!model.material.castShadows)
                         return
-                    
+
                     shadowPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
                     shadowPassEndcoder.setBindGroup(1, this.dirLight.shadowProjector.shadowCameraBindGroup)
                     shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
@@ -137,7 +143,7 @@ export default class Scene {
                 }
             ],
             depthStencilAttachment: {
-                view: this.mainCamera.depthMap.createView(),
+                view: camera.depthMapView,
                 depthClearValue: 1.0,
                 depthLoadOp: 'clear',
                 depthStoreOp: 'store',
@@ -146,19 +152,26 @@ export default class Scene {
 
         const renderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
 
-        this.environment.drawSkybox(renderPassEncoder, this.mainCamera)
+        this.environment.drawSkybox(renderPassEncoder, camera)
 
         this.materials.forEach((meshes, material) => {
 
-            if(material.status != MaterialStatus.Valid){
+            if (material.status != MaterialStatus.Valid) {
                 material.validate()
             }
 
             renderPassEncoder.setPipeline(material.shader.renderPipeline)
+            if(material.lighting === Lighting.BlinnPhong){
+                if(material.receivesShadows)
+                    renderPassEncoder.setBindGroup(1, sceneBindGroup.bindGroupLitShadows)
+                else
+                    renderPassEncoder.setBindGroup(1, sceneBindGroup.bindGroupLit)
+            } else{
+                renderPassEncoder.setBindGroup(1, sceneBindGroup.bindGroupUnLit)
+            }
 
-            renderPassEncoder.setBindGroup(1, material.sceneBindGroup)
             const standardMat = material as StandardMaterial
-            if(standardMat.uniformBindGroups.has(2))
+            if (standardMat.uniformBindGroups.has(2))
                 renderPassEncoder.setBindGroup(2, standardMat.uniformBindGroups.get(2))
 
             meshes.forEach((models, mesh) => {
@@ -223,6 +236,76 @@ export default class Scene {
         ambientDirData.set(this.dirLight.transform.localForward, 4)
         ambientDirData.set(this.dirLight.color, 8)
         OBI.device.queue.writeBuffer(this.dirAmbientBuffer, 0, ambientDirData)
+    }
+}
+
+class SceneBindGroupSetup {
+    camera: Camera
+    scene: Scene
+    lighting: Lighting
+    bindGroupUnLit: GPUBindGroup
+    bindGroupLit: GPUBindGroup
+    bindGroupLitShadows: GPUBindGroup
+
+    constructor(scene: Scene, camera: Camera) {
+        this.scene = scene
+        this.camera = camera
+
+        // Make unlit bind group
+        const bindGroupLayoutEntries = [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]
+        const bindGroupEntries: GPUBindGroupEntry[] = [{
+            binding: 0, // the directional and ambient info
+            resource: {
+                buffer: camera.cameraUniformBuffer
+            }
+        }]
+
+        var bindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
+        this.bindGroupUnLit = OBI.device.createBindGroup({
+            label: 'Scene Unlit Binding Group',
+            layout: bindGroupLayout,
+            entries: bindGroupEntries
+        })
+
+        // make lit bind group
+        bindGroupLayoutEntries.push(Shader.DEFAULT_DIRLIGHTING_BINDGROUPLAYOUTENTRY)
+        bindGroupEntries.push({
+            binding: 1, // the directional and ambient info
+            resource: {
+                buffer: scene.dirAmbientBuffer
+            }
+        })
+
+        bindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
+        this.bindGroupLit = OBI.device.createBindGroup({
+            label: 'Scene Lit Binding Group',
+            layout: bindGroupLayout,
+            entries: bindGroupEntries
+        })
+
+        // shadow bind group
+        Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
+        bindGroupEntries.push({
+            binding: 2,
+            resource: scene.dirLight.shadowProjector.shadowMapView
+        })
+        bindGroupEntries.push({
+            binding: 3,
+            resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
+                compare: 'less',
+            })
+        })
+        bindGroupEntries.push({
+            binding: 4,
+            resource: { buffer: scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
+        })
+
+        bindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
+        this.bindGroupLitShadows = OBI.device.createBindGroup({
+            label: 'Scene Binding Group',
+            layout: bindGroupLayout,
+            entries: bindGroupEntries
+        })
     }
 }
 

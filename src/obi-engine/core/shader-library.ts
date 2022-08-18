@@ -51,7 +51,7 @@ export class ShaderLibrary {
             bindgroupLayouts.push(OBI.device.createBindGroupLayout({ entries: [] }))
         if (materialBindGroupLayouts.has(3))
             bindgroupLayouts.push(materialBindGroupLayouts.get(3))
-
+            
         const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, Shader.DEFAULT_DEPTHSTENCIL_STATE, bindgroupLayouts)
         console.log("Created Standard Shader variant for: " + Array.from(flags.values()))
 
@@ -111,7 +111,19 @@ export class ShaderLibrary {
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: OBI.format
+                        format: OBI.format,
+                        blend: {
+                            color: {
+                                srcFactor: 'one',
+                                dstFactor: 'one',
+                                operation: 'add'
+                              },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one',
+                                operation: 'add'
+                            }
+                        }
                     }
                 ]
             }

@@ -126,5 +126,5 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // );
     // return vec4<f32>(shadowTest, 0, 0,1);
     
-   return vec4<f32>(finalColor,1);
+   return vec4<f32>(finalColor,color.a);
 }

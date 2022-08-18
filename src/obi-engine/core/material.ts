@@ -123,48 +123,48 @@ export class Material{
         })
     }
 
-    createSceneBindGroup() {
-        const entries: GPUBindGroupEntry[] = []
+    // createSceneBindGroup() {
+    //     const entries: GPUBindGroupEntry[] = []
 
-        entries.push({
-            binding: 0, // the directional and ambient info
-            resource: {
-                buffer: this.scene.mainCamera.cameraUniformBuffer
-            }
-        })
+    //     entries.push({
+    //         binding: 0, // the directional and ambient info
+    //         resource: {
+    //             buffer: this.scene.mainCamera.cameraUniformBuffer
+    //         }
+    //     })
 
-        if (this.lighting === Lighting.BlinnPhong)
-            entries.push({
-                binding: 1, // the directional and ambient info
-                resource: {
-                    buffer: this.scene.dirAmbientBuffer
-                }
-            })
+    //     if (this.lighting === Lighting.BlinnPhong)
+    //         entries.push({
+    //             binding: 1, // the directional and ambient info
+    //             resource: {
+    //                 buffer: this.scene.dirAmbientBuffer
+    //             }
+    //         })
 
-        if (this.receivesShadows) {
-            entries.push({
-                binding: 2,
-                resource: this.scene.dirLight.shadowProjector.shadowMapView
-            })
-            entries.push({
-                binding: 3,
-                resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
-                    compare: 'less',
-                })
-            })
-            entries.push({
-                binding: 4,
-                resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
-            })
-        }
+    //     if (this.receivesShadows) {
+    //         entries.push({
+    //             binding: 2,
+    //             resource: this.scene.dirLight.shadowProjector.shadowMapView
+    //         })
+    //         entries.push({
+    //             binding: 3,
+    //             resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
+    //                 compare: 'less',
+    //             })
+    //         })
+    //         entries.push({
+    //             binding: 4,
+    //             resource: { buffer: this.scene.dirLight.shadowProjector.lightMatrixUniformBuffer }
+    //         })
+    //     }
 
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(this.flags) })
-        this.sceneBindGroup = OBI.device.createBindGroup({
-            label: 'Scene Binding Group',
-            layout: sceneBindGroupLayout,
-            entries: entries
-        })
-    }
+    //     const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(this.flags) })
+    //     this.sceneBindGroup = OBI.device.createBindGroup({
+    //         label: 'Scene Binding Group',
+    //         layout: sceneBindGroupLayout,
+    //         entries: entries
+    //     })
+    // }
 
     getUniformLayouts() {
       

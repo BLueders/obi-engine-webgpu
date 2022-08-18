@@ -39,7 +39,6 @@ export default class OBI{
             format: OBI.format,
             alphaMode: "opaque"
         })
-    
         return true
     }
 

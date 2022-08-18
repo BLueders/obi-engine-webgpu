@@ -47,7 +47,8 @@ async function run() {
     
     const materials: StandardMaterial[] = []
     for (let i = 0; i < NUM_MATERIALS; i++) {
-        const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), 1))
+        const alpha = Math.random() > 0.5 ? 1 : 0.5
+        const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), alpha))
         Math.random() > 0.5 ? mat.setAlbedoMap(albedoMap) : undefined
         Math.random() > 0.5 ? mat.setNormalMap(normalMap) : undefined
         mat.lighting = Lighting.BlinnPhong

@@ -169,7 +169,7 @@ export default class StandardMaterial extends LitMaterial {
         if (this.shader) {
             this.status = MaterialStatus.Valid
         }
-        this.createSceneBindGroup()
+        //this.createSceneBindGroup()
         this.createMaterialBindGroups()
         if (this.shader) {
             this.status = MaterialStatus.Valid

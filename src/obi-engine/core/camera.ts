@@ -18,6 +18,7 @@ export class Camera {
     size: any;
 
     depthMap: GPUTexture
+    depthMapView: GPUTextureView
     cameraUniformBuffer: GPUBuffer
 
     /** Creates a new PerspectiveCamera object
@@ -42,6 +43,7 @@ export class Camera {
             format: "depth24plus",
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         } as GPUTextureDescriptor)
+        this.depthMapView = this.depthMap.createView()
 
         this.cameraUniformBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer Camera Data',
