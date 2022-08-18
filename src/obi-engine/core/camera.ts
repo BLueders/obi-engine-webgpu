@@ -40,7 +40,7 @@ export class Camera {
 
         this.depthMap = OBI.device.createTexture({
             size: OBI.canvasSize, 
-            format: "depth24plus",
+            format: 'depth24plus-stencil8',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         } as GPUTextureDescriptor)
         this.depthMapView = this.depthMap.createView()

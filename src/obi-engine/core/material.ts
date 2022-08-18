@@ -6,9 +6,12 @@ import Scene from "./scene";
 import { BufferUniform, SamplerUniform, TextureUniform, Uniform } from "./uniform";
 import OBI from "./obi";
 import { Texture } from "./texture";
+import { RenderPassType } from "./renderer/renderpass";
 
 export class Material{
-    shader:Shader
+    
+    renderPassMap:Map<RenderPassType, Shader>
+
     flags:Set<string>
 
     castShadows:boolean
@@ -32,6 +35,8 @@ export class Material{
         this.uniformBindGroups = new Map<number, GPUBindGroup>()
         this.flags.add(Shader.CAST_SHADOWS_FLAG)
         this.status = MaterialStatus.NeedsUpdate
+
+        this.renderPassMap = new Map<RenderPassType, Shader>()
     }
 
     updateFlags(){

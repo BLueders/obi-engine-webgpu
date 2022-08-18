@@ -14,7 +14,13 @@ export default class Shader {
     static DEFAULT_DEPTHSTENCIL_STATE: GPUDepthStencilState = {
         depthWriteEnabled: true,
         depthCompare: 'less',
-        format: 'depth24plus',
+        format: 'depth24plus-stencil8',
+    }
+
+    static ADDITIVELIGHT_DEPTHSTENCIL_STATE: GPUDepthStencilState = {
+        depthWriteEnabled: true,
+        depthCompare: 'less-equal',
+        format: 'depth24plus-stencil8',
     }
 
     static DEFAULT_MODEL_BINDGROUPLAYOUTENTRY: GPUBindGroupLayoutEntry = {
@@ -33,35 +39,57 @@ export default class Shader {
         },
     }
 
-    static DEFAULT_DIRLIGHTING_BINDGROUPLAYOUTENTRY: GPUBindGroupLayoutEntry = {
-        binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: {
-            type: 'uniform',
-        },
-    }
-
-    static DEFAULT_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [{
-        binding: 2,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: {
-            sampleType: 'depth',
-            viewDimension: '2d'
+    static DEFAULT_LIGHT_BINDGROUPLAYOUTENTRIES: GPUBindGroupLayoutEntry[] = [
+        {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            buffer: {
+                type: 'uniform',
+            }
         }
-    }, {
-        binding: 3,
-        visibility: GPUShaderStage.FRAGMENT,
-        sampler: {
-            type: 'comparison',
-        },
-    }, {
-        binding: 4,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-            type: 'uniform',
-        },
-    }]
+        ,
+        {
+            binding: 2,
+            visibility: GPUShaderStage.FRAGMENT,
+            buffer: {
+                type: 'uniform',
+            }
+        }]
 
+    static DEFAULT_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [
+        {
+            binding: 3,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {
+                sampleType: 'depth',
+                viewDimension: '2d'
+            }
+        }, {
+            binding: 4,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {
+                type: 'comparison',
+            },
+        }, {
+            binding: 5,
+            visibility: GPUShaderStage.VERTEX,
+            buffer: {
+                type: 'uniform',
+            },
+        }]
+
+    static DEFAULT_ADDITIVE_LIGHT_BLENDSTATE: GPUBlendState = {
+        color: {
+            srcFactor: 'one',
+            dstFactor: 'one',
+            operation: 'add'
+        },
+        alpha: {
+            srcFactor: 'one',
+            dstFactor: 'one',
+            operation: 'add'
+        }
+    } as GPUBlendState
 
     static HAS_TINT_COLOR_FLAG = "HAS_TINT_COLOR"
     static HAS_ALBEDO_MAP_FLAG = "HAS_ALBEDO_MAP"
@@ -77,6 +105,12 @@ export default class Shader {
     static RECEIVE_SHADOWS_FLAG = "RECEIVES_SHADOWS"
     static CAST_SHADOWS_FLAG = "CAST_SHADOWS"
 
+    static DIRECTIONAL_LIGHT_PASS = 'DIRECTIONAL_LIGHT_PASS'
+    static POINT_LIGHT_PASS = 'POINT_LIGHT_PASS'
+    static SPOT_LIGHT_PASS = 'SPOT_LIGHT_PASS'
+    static SHADOW_PASS = 'SHADOW_PASS'
+    static Z_ONLY_PASS = 'Z_ONLY_PASS'
+
     static ALL_FLAGS = [Shader.HAS_ALBEDO_MAP_FLAG,
     Shader.HAS_ALBEDO_MAP_FLAG,
     Shader.HAS_NORMAL_MAP_FLAG,
@@ -87,7 +121,12 @@ export default class Shader {
     Shader.HAS_EMISSIVE_MAP_FLAG,
     Shader.BLINNPHONG_LIGHTING_FLAG,
     Shader.RECEIVE_SHADOWS_FLAG,
-    Shader.CAST_SHADOWS_FLAG]
+    Shader.CAST_SHADOWS_FLAG,
+    Shader.DIRECTIONAL_LIGHT_PASS,
+    Shader.POINT_LIGHT_PASS,
+    Shader.SPOT_LIGHT_PASS,
+    Shader.SHADOW_PASS,
+    Shader.Z_ONLY_PASS]
 
     hash: number
     renderPipeline: GPURenderPipeline
@@ -97,24 +136,15 @@ export default class Shader {
         this.renderPipeline = renderPipeline
     }
 
-    static getStandardModelBindGroupEntries(flags:Set<string>){
+    static getStandardModelBindGroupEntries(flags: Set<string>) {
         const modelBindGroupEntries = [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]
-        if (flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)) {
-            modelBindGroupEntries.push({
-                binding: 1,
-                visibility: GPUShaderStage.FRAGMENT,
-                buffer: {
-                    type: 'uniform',
-                }
-            })
-        }
         return modelBindGroupEntries
     }
 
-    static getStandardSceneBindGroupEntries(flags:Set<string>){
+    static getStandardSceneBindGroupEntries(flags: Set<string>) {
         const sceneBindGroupEntries = [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]
         if (flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)) {
-            sceneBindGroupEntries.push(Shader.DEFAULT_DIRLIGHTING_BINDGROUPLAYOUTENTRY)
+            Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRIES.forEach(value => sceneBindGroupEntries.push(value))
         }
         if (flags.has(Shader.RECEIVE_SHADOWS_FLAG)) {
             Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))
@@ -122,7 +152,7 @@ export default class Shader {
         return sceneBindGroupEntries
     }
 
-    static getStandardMaterialBindGroupEntries(flags:Set<string>){
+    static getStandardMaterialBindGroupEntries(flags: Set<string>) {
         const materialBindGroupEntries: GPUBindGroupLayoutEntry[] = []
 
         materialBindGroupEntries.push({

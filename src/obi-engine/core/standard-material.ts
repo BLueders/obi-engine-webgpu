@@ -163,16 +163,6 @@ export default class StandardMaterial extends LitMaterial {
     }
 
     validate(): void {
-        this.uniformLayouts = this.getUniformLayouts()
-        this.updateFlags()
-        this.shader = ShaderLibrary.getStandardShader(this.flags)
-        if (this.shader) {
-            this.status = MaterialStatus.Valid
-        }
-        //this.createSceneBindGroup()
-        this.createMaterialBindGroups()
-        if (this.shader) {
-            this.status = MaterialStatus.Valid
-        }
+        super.validate()
     }
 }

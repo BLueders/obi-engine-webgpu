@@ -72,7 +72,7 @@ async function run() {
     mat.setAlbedoMap(albedoMap)
     mat.lighting = Lighting.BlinnPhong
     mat.receivesShadows = true
-    mat.castShadows = false
+    mat.castShadows = true
     const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -0.5, 0), quat.create(), vec3.fromValues(10, 1, 10))
     scene.addModel(model)
 
@@ -88,6 +88,10 @@ async function run() {
     // }
     scene.prepare()
 
+    const dirLight = new Light(LightType.Directional, vec3.fromValues(0, 5, 0), quat.fromEuler(quat.create(), 0.5, 0, 0))
+    dirLight.color = vec3.fromValues(1, 1, 1)
+    scene.addLight(dirLight)
+
     function frame() {
 
         if(Input.keyDown("space")){
@@ -97,7 +101,7 @@ async function run() {
             }
         }
 
-        quat.fromEuler(scene.dirLight.transform.rotation, 75, performance.now() / 50, 0)
+        quat.fromEuler(dirLight.transform.rotation, 25, performance.now() / 50, 0)
 
         Input.update()
         controller.update()

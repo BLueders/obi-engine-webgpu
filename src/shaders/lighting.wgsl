@@ -1,16 +1,11 @@
-struct BaseLightData {
-    ambientColor: vec4<f32>,
-    directionalDir: vec4<f32>,
-    directionalColor: vec4<f32>
-}
-
-struct PointLightData {
+struct Light {
     position:vec4<f32>,
+    direction:vec4<f32>,
     color:vec4<f32>,
     range: f32,
     intensity: f32,
-    filler1: f32,   // need to be a multible of 4 f32s
-    filler2: f32
+    innerAngle: f32,   // need to be a multible of 4 f32s
+    outerAngle: f32
 }
 
 struct NormalInfo {
@@ -58,7 +53,7 @@ fn blinnphongDirLight(dir:vec3<f32>, color:vec3<f32>, normal:vec3<f32>, viewDir:
     return diffuse + specular;
 }
 
-fn blinnphongPointLight(data: PointLightData, normal:vec3<f32>, viewDir:vec3<f32>, worldPosition:vec3<f32>) -> vec3<f32> 
+fn blinnphongPointLight(data: Light, normal:vec3<f32>, viewDir:vec3<f32>, worldPosition:vec3<f32>) -> vec3<f32> 
 {
     var pointPosition = data.position.xyz;
     var pointColor = data.color.rgb;

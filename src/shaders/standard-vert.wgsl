@@ -4,7 +4,7 @@
 @group(1) @binding(0) var<uniform> scene : Scene;
 
 #if RECEIVES_SHADOWS
-    @group(1) @binding(4) var<uniform> dirLightMatrix: mat4x4<f32>;
+    @group(1) @binding(5) var<uniform> dirLightMatrix: mat4x4<f32>;
 #endif
 
 @vertex
@@ -16,7 +16,8 @@ fn main(in : VertexIn) -> VertexOut{
     // out.worldPosition = out.position;
     // out.position = P * V * out.position;
     out.worldPosition = model.modelMatrix * in.position;
-    out.position = model.mvpMatrix * in.position;
+    //out.position = model.mvpMatrix * in.position;
+    out.position = scene.projectionMatrix * scene.viewMatrix * model.modelMatrix * in.position;
     out.uv = in.uv;
 
     var n = normalize(model.normalMatrix * vec4<f32>(in.normal,1)).xyz;

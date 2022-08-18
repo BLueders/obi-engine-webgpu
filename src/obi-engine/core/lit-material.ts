@@ -1,5 +1,6 @@
 import { Material, MaterialStatus } from "./material"
 import OBI from "./obi"
+import { RenderPassType } from "./renderer/renderpass"
 import Shader from "./shader"
 import { Lighting, ShaderLibrary } from "./shader-library"
 import { Texture } from "./texture"
@@ -15,11 +16,18 @@ export default class LitMaterial extends Material {
 
     validate(): void {
         this.uniformLayouts = this.getUniformLayouts()
-        this.shader = ShaderLibrary.getCustomShader(this.flags, this.uniformLayouts)
-        //this.createSceneBindGroup()
-        this.createMaterialBindGroups()
-        if (this.shader) {
-            this.status = MaterialStatus.Valid
+        this.updateFlags()
+        this.renderPassMap.set(RenderPassType.Opaque_Base, ShaderLibrary.getBasePassShader(this.flags, this.uniformLayouts))
+        if(this.flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)){
+            this.renderPassMap.set(RenderPassType.Opaque_Z_only, ShaderLibrary.getZ_OnlyPassShader())
+            this.renderPassMap.set(RenderPassType.Opaque_Directional_Light, ShaderLibrary.getAdditiveDirLightShader(this.flags, this.uniformLayouts))
+            this.renderPassMap.set(RenderPassType.Opaque_Point_Light, ShaderLibrary.getAdditivePointLightShader(this.flags, this.uniformLayouts))
+            this.renderPassMap.set(RenderPassType.Opaque_Spot_Light, ShaderLibrary.getAdditiveSpotLightShader(this.flags, this.uniformLayouts))
         }
+        if(this.flags.has(Shader.CAST_SHADOWS_FLAG)){
+            this.renderPassMap.set(RenderPassType.Opaque_Shadow, ShaderLibrary.getShadowShader())
+        }
+        this.createMaterialBindGroups()
+        this.status = MaterialStatus.Valid
     }
 }

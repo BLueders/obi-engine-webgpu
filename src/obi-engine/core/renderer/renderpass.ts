@@ -1,3 +1,5 @@
+import Shader from "../shader";
+
 export enum RenderPassType{
     Opaque_Z_only,
     Opaque_Shadow,

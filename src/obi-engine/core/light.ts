@@ -19,6 +19,8 @@ export class Light {
     color: vec3
     range: number
     intensity: number
+    innerSpotAngle: number
+    outerSpotAngle: number
     castShadows: boolean
     shadowProjector: ShadowProjector
 
@@ -29,6 +31,8 @@ export class Light {
         this.range = 10
         this.intensity = 1
         this.castShadows = true
+        this.innerSpotAngle = 0
+        this.outerSpotAngle = 0
         this.shadowProjector = new ShadowProjector(this)
     }
 }
@@ -51,10 +55,10 @@ class ShadowProjector {
     light: Light
     projection: ShadowProjection
 
-    lightMatrixUniformBuffer: GPUBuffer
+    // lightMatrixUniformBuffer: GPUBuffer
 
-    shadowCameraUniformBuffer: GPUBuffer
-    shadowCameraBindGroup: GPUBindGroup
+    // shadowCameraUniformBuffer: GPUBuffer
+    // shadowCameraBindGroup: GPUBindGroup
 
     constructor(light: Light) {
         this.light = light
@@ -80,36 +84,34 @@ class ShadowProjector {
                 break
         } 
         
-        this.lightMatrixUniformBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer LightMatrix 4x4 matrix',
-            size: 4 * 4 * 4, // 4 x 4 float32
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
+        // this.lightMatrixUniformBuffer = OBI.device.createBuffer({
+        //     label: 'GPUBuffer LightMatrix 4x4 matrix',
+        //     size: 4 * 4 * 4, // 4 x 4 float32
+        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        // })
 
-        this.shadowCameraUniformBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Shadow Camera Data',
-            size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
-                4 * 4 * 4 + // 4 x 4 float32 projection matrix
-                3 * 4,      // 3 * float32 camera position
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
+        // this.shadowCameraUniformBuffer = OBI.device.createBuffer({
+        //     label: 'GPUBuffer Shadow Camera Data',
+        //     size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
+        //         4 * 4 * 4 + // 4 x 4 float32 projection matrix
+        //         3 * 4,      // 3 * float32 camera position
+        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        // })
 
-        const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]})
-        this.shadowCameraBindGroup = OBI.device.createBindGroup({
-            label: 'Shadow Camera Bind Group',
-            layout: shadowCameraBindGroupLayout,
-            entries: [{
-                binding: 0, // camera data
-                resource: {
-                    buffer: this.shadowCameraUniformBuffer
-                }
-            }]
-        })
+        // const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]})
+        // this.shadowCameraBindGroup = OBI.device.createBindGroup({
+        //     label: 'Shadow Camera Bind Group',
+        //     layout: shadowCameraBindGroupLayout,
+        //     entries: [{
+        //         binding: 0, // camera data
+        //         resource: {
+        //             buffer: this.shadowCameraUniformBuffer
+        //         }
+        //     }]
+        // })
     }
 
-    update(scene: Scene) {
-        // const target = vec3.create()
-        const camPosition = scene.mainCamera.getPosition()
+    update(camPosition: vec3) {
 
         const forward = this.light.transform.localForward
         const lightTarget = vec3.create()

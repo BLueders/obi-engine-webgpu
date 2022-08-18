@@ -175,8 +175,11 @@ export default class Environment {
             // Fragment closest to the camera is rendered in front
             depthStencil: {
                 depthWriteEnabled: false,
-                // depthCompare: 'less',
-                format: 'depth24plus',
+                //depthCompare: 'less',
+                format: 'depth24plus-stencil8',
+                stencilFront: {
+                   compare: 'greater-equal',
+                }
             }
         } as GPURenderPipelineDescriptor)
 
