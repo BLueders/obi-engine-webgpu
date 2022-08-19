@@ -39,22 +39,21 @@ export default class Shader {
         },
     }
 
-    static DEFAULT_LIGHT_BINDGROUPLAYOUTENTRIES: GPUBindGroupLayoutEntry[] = [
-        {
-            binding: 1,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: {
-                type: 'uniform',
-            }
+    static DEFAULT_AMBIENT_LIGHT_BINDGROUPENTRY: GPUBindGroupLayoutEntry = {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+            type: 'uniform',
         }
-        ,
-        {
-            binding: 2,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: {
-                type: 'uniform',
-            }
-        }]
+    }
+
+    static DEFAULT_LIGHT_BINDGROUPLAYOUTENTRY: GPUBindGroupLayoutEntry = {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+            type: 'uniform',
+        }
+    }
 
     static DEFAULT_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [
         {
@@ -110,6 +109,7 @@ export default class Shader {
     static SPOT_LIGHT_PASS = 'SPOT_LIGHT_PASS'
     static SHADOW_PASS = 'SHADOW_PASS'
     static Z_ONLY_PASS = 'Z_ONLY_PASS'
+    static AMBIENT_LIGHT_PASS = 'AMBIENT_LIGHT_PASS'
 
     static ALL_FLAGS = [Shader.HAS_ALBEDO_MAP_FLAG,
     Shader.HAS_ALBEDO_MAP_FLAG,
@@ -126,7 +126,8 @@ export default class Shader {
     Shader.POINT_LIGHT_PASS,
     Shader.SPOT_LIGHT_PASS,
     Shader.SHADOW_PASS,
-    Shader.Z_ONLY_PASS]
+    Shader.Z_ONLY_PASS,
+    Shader.AMBIENT_LIGHT_PASS]
 
     hash: number
     renderPipeline: GPURenderPipeline
@@ -143,8 +144,12 @@ export default class Shader {
 
     static getStandardSceneBindGroupEntries(flags: Set<string>) {
         const sceneBindGroupEntries = [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]
+        if (flags.has(Shader.AMBIENT_LIGHT_PASS)) {
+            sceneBindGroupEntries.push(Shader.DEFAULT_AMBIENT_LIGHT_BINDGROUPENTRY)
+            return sceneBindGroupEntries
+        }
         if (flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)) {
-            Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRIES.forEach(value => sceneBindGroupEntries.push(value))
+            sceneBindGroupEntries.push(Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRY)
         }
         if (flags.has(Shader.RECEIVE_SHADOWS_FLAG)) {
             Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))

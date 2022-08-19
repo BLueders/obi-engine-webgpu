@@ -17,12 +17,19 @@ export default class LitMaterial extends Material {
     validate(): void {
         this.uniformLayouts = this.getUniformLayouts()
         this.updateFlags()
-        this.renderPassMap.set(RenderPassType.Opaque_Base, ShaderLibrary.getBasePassShader(this.flags, this.uniformLayouts))
+        //this.renderPassMap.set(RenderPassType.Opaque_Base, ShaderLibrary.getBasePassShader(this.flags, this.uniformLayouts))
         if(this.flags.has(Shader.BLINNPHONG_LIGHTING_FLAG)){
             this.renderPassMap.set(RenderPassType.Opaque_Z_only, ShaderLibrary.getZ_OnlyPassShader())
+            this.renderPassMap.set(RenderPassType.Opaque_Ambient_only, ShaderLibrary.getAmbientOnlyPassShader(this.flags, this.uniformLayouts))
             this.renderPassMap.set(RenderPassType.Opaque_Directional_Light, ShaderLibrary.getAdditiveDirLightShader(this.flags, this.uniformLayouts))
             this.renderPassMap.set(RenderPassType.Opaque_Point_Light, ShaderLibrary.getAdditivePointLightShader(this.flags, this.uniformLayouts))
-            this.renderPassMap.set(RenderPassType.Opaque_Spot_Light, ShaderLibrary.getAdditiveSpotLightShader(this.flags, this.uniformLayouts))
+            //this.renderPassMap.set(RenderPassType.Opaque_Spot_Light, ShaderLibrary.getAdditiveSpotLightShader(this.flags, this.uniformLayouts))
+
+            const noShadowFlags = new Set<string>(this.flags)
+            noShadowFlags.delete(Shader.RECEIVE_SHADOWS_FLAG)
+            this.renderPassMap.set(RenderPassType.Opaque_Directional_Light_NoShadows, ShaderLibrary.getAdditiveDirLightShader(noShadowFlags, this.uniformLayouts))
+            this.renderPassMap.set(RenderPassType.Opaque_Point_Light_NoShadows, ShaderLibrary.getAdditivePointLightShader(noShadowFlags, this.uniformLayouts))
+            //this.renderPassMap.set(RenderPassType.Opaque_Spot_Light_NoShadows, ShaderLibrary.getAdditiveSpotLightShader(this.flags, this.uniformLayouts))
         }
         if(this.flags.has(Shader.CAST_SHADOWS_FLAG)){
             this.renderPassMap.set(RenderPassType.Opaque_Shadow, ShaderLibrary.getShadowShader())

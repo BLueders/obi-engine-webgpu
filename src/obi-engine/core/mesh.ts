@@ -17,6 +17,7 @@ export default class Mesh {
     indexCount: number
     name: string
     vertexComponentLen: number
+    aabbHalfWidth: number
 
     /**
       * Creates and returns a mesh object assembled from the given data. The mesh object can
@@ -113,9 +114,20 @@ export default class Mesh {
 
         this.name = name
 
+        this.calculateAABB()
         //store this in MeshCache with name as reference.
         Mesh.cache.set(name, this)
         return this
+    }
+
+    calculateAABB(){
+        let largestExtend = 0
+        for(let i = 0; i < this.positionData.length; i++){
+            let dataPoint = this.positionData[i]
+            if(dataPoint > largestExtend)
+                largestExtend = dataPoint
+        }
+        this.aabbHalfWidth = largestExtend
     }
 
     createTangents(indexData: Array<number>, positionData: Array<number>, normalData: Array<number>, texcoordData: Array<number>): Array<number> {

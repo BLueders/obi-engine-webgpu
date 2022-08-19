@@ -30,9 +30,13 @@ export class Light {
         this.color = vec3.fromValues(0, 0, 0)
         this.range = 10
         this.intensity = 1
-        this.castShadows = true
+        this.castShadows = false
         this.innerSpotAngle = 0
         this.outerSpotAngle = 0
+    }
+
+    enableShadows(){
+        this.castShadows = true
         this.shadowProjector = new ShadowProjector(this)
     }
 }
@@ -54,11 +58,6 @@ class ShadowProjector {
     modelMatrix: mat4
     light: Light
     projection: ShadowProjection
-
-    // lightMatrixUniformBuffer: GPUBuffer
-
-    // shadowCameraUniformBuffer: GPUBuffer
-    // shadowCameraBindGroup: GPUBindGroup
 
     constructor(light: Light) {
         this.light = light
@@ -83,32 +82,6 @@ class ShadowProjector {
                 throw new Error("Not Implemented")
                 break
         } 
-        
-        // this.lightMatrixUniformBuffer = OBI.device.createBuffer({
-        //     label: 'GPUBuffer LightMatrix 4x4 matrix',
-        //     size: 4 * 4 * 4, // 4 x 4 float32
-        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        // })
-
-        // this.shadowCameraUniformBuffer = OBI.device.createBuffer({
-        //     label: 'GPUBuffer Shadow Camera Data',
-        //     size: 4 * 4 * 4 + // 4 x 4 float32 view matrix
-        //         4 * 4 * 4 + // 4 x 4 float32 projection matrix
-        //         3 * 4,      // 3 * float32 camera position
-        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        // })
-
-        // const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({entries:[Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]})
-        // this.shadowCameraBindGroup = OBI.device.createBindGroup({
-        //     label: 'Shadow Camera Bind Group',
-        //     layout: shadowCameraBindGroupLayout,
-        //     entries: [{
-        //         binding: 0, // camera data
-        //         resource: {
-        //             buffer: this.shadowCameraUniformBuffer
-        //         }
-        //     }]
-        // })
     }
 
     update(camPosition: vec3) {

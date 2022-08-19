@@ -38,10 +38,7 @@ export default class Scene {
 
         this.lights = []
 
-        const dirLight = new Light(LightType.Directional, vec3.fromValues(0, 5, 0), quat.fromEuler(quat.create(), 45, 0, 0))
-        dirLight.color = vec3.fromValues(1, 1, 1)
-        this.addLight(dirLight)
-        this.ambientLight = vec4.fromValues(1, 1, 1, 0.1)
+        this.ambientLight = vec4.fromValues(1, 1, 1, 0.3)
 
         this.environment = environment
     }
@@ -118,8 +115,43 @@ export default class Scene {
         })
 
         // Z-ONLY LIGHTING PRE PASS
-        const zonlyDescriptor: GPURenderPassDescriptor = {
-            colorAttachments: [],
+        // const zonlyDescriptor: GPURenderPassDescriptor = {
+        //     colorAttachments: [],
+        //     depthStencilAttachment: {
+        //         view: camera.depthMapView,
+        //         depthClearValue: 1.0,
+        //         depthLoadOp: 'clear',
+        //         depthStoreOp: 'store',
+        //         stencilLoadOp: 'clear',
+        //         stencilStoreOp: 'store'
+        //     }
+        // }
+
+        // const zonlyPassEndcoder = commandEncoder.beginRenderPass(zonlyDescriptor)
+
+        // this.materials.forEach((meshes, material) => {
+        //     zonlyPassEndcoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Z_only).renderPipeline)
+        //     meshes.forEach((models, mesh) => {
+        //         // set vertex
+        //         zonlyPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
+        //         zonlyPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+        //         models.forEach(model => {
+        //             zonlyPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
+        //             zonlyPassEndcoder.setBindGroup(1, this.sceneRessources.bindGroupUnLit)
+        //             zonlyPassEndcoder.drawIndexed(model.mesh.vertexCount)
+        //         })
+        //     })
+        // })
+        // zonlyPassEndcoder.end()
+
+        // Ambient only pass (including Z prepass and stencil for skybox)
+        const ambientOnlyDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [{
+                view: OBI.context.getCurrentTexture().createView(),
+                clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            }],
             depthStencilAttachment: {
                 view: camera.depthMapView,
                 depthClearValue: 1.0,
@@ -130,30 +162,31 @@ export default class Scene {
             }
         }
 
-        const zonlyPassEndcoder = commandEncoder.beginRenderPass(zonlyDescriptor)
+        const ambientOnlyPassEndcoder = commandEncoder.beginRenderPass(ambientOnlyDescriptor)
 
         this.materials.forEach((meshes, material) => {
-            zonlyPassEndcoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Z_only).renderPipeline)
+            ambientOnlyPassEndcoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Ambient_only).renderPipeline)
+            ambientOnlyPassEndcoder.setBindGroup(1, this.sceneRessources.bindGroupAmbientOnly)
+            if (material.uniformBindGroups.has(2))
+                ambientOnlyPassEndcoder.setBindGroup(2, material.uniformBindGroups.get(2))
             meshes.forEach((models, mesh) => {
                 // set vertex
-                zonlyPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
-                zonlyPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+                ambientOnlyPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
+                ambientOnlyPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
                 models.forEach(model => {
-                    zonlyPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
-                    zonlyPassEndcoder.setBindGroup(1, this.sceneRessources.bindGroupUnLit)
-                    zonlyPassEndcoder.drawIndexed(model.mesh.vertexCount)
+                    ambientOnlyPassEndcoder.setBindGroup(0, model.modelBindGroup)
+                    ambientOnlyPassEndcoder.drawIndexed(model.mesh.vertexCount)
                 })
             })
         })
-        zonlyPassEndcoder.end()
+        ambientOnlyPassEndcoder.end()
 
-        // SKYBOX RENDER PASS
+        //SKYBOX RENDER PASS
         const renderPassDescriptor: GPURenderPassDescriptor = {
             colorAttachments: [
                 {
                     view: OBI.context.getCurrentTexture().createView(),
-                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
-                    loadOp: 'clear',
+                    loadOp: 'load',
                     storeOp: 'store'
                 }
             ],
@@ -171,8 +204,9 @@ export default class Scene {
         renderPassEncoder.end()
 
         // DIR Light RENDER PASS
+        let skippedByDistance = 0
         this.lights.forEach(light => {
-            if (light.type != LightType.Directional) return
+            //if (light.type != LightType.Directional) return
 
             const renderPassDescriptor: GPURenderPassDescriptor = {
                 colorAttachments: [
@@ -201,9 +235,22 @@ export default class Scene {
                     material.validate()
                 }
 
-                renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Directional_Light).renderPipeline)
+                if (light.type === LightType.Directional && light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Directional_Light).renderPipeline)
+                if (light.type === LightType.Point && light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Point_Light).renderPipeline)
+                if (light.type === LightType.Spot && light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Spot_Light).renderPipeline)
+
+                if (light.type === LightType.Directional && !light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Directional_Light_NoShadows).renderPipeline)
+                if (light.type === LightType.Point && !light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Point_Light_NoShadows).renderPipeline)
+                if (light.type === LightType.Spot && !light.castShadows)
+                    renderPassEncoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Spot_Light_NoShadows).renderPipeline)
+
                 if (material.lighting === Lighting.BlinnPhong) {
-                    if (material.receivesShadows)
+                    if (material.receivesShadows && light.castShadows)
                         renderPassEncoder.setBindGroup(1, this.sceneRessources.lightRessources.get(light).lightBindGroupWithShadows)
                     else
                         renderPassEncoder.setBindGroup(1, this.sceneRessources.lightRessources.get(light).lightBindGroup)
@@ -224,6 +271,15 @@ export default class Scene {
                     models.forEach(model => {
 
                         renderPassEncoder.setBindGroup(0, model.modelBindGroup)
+
+                        if(light.type === LightType.Point || light.type === LightType.Spot){
+                            let dist = vec3.dist(light.transform.position, model.transform.position)
+                            dist -= mesh.aabbHalfWidth * Math.max(model.transform.scale[0], model.transform.scale[1], model.transform.scale[2])
+                            if(dist > light.range){
+                                skippedByDistance++
+                                return
+                            }
+                        }
 
                         // draw vertex count of cube
                         renderPassEncoder.drawIndexed(model.mesh.vertexCount)
@@ -272,10 +328,12 @@ class SceneRessources {
     lightRessources: Map<Light, LightRessource>
 
     bindGroupUnLit: GPUBindGroup
+    bindGroupAmbientOnly: GPUBindGroup
 
     constructor() {
         this.lightRessources = new Map<Light, LightRessource>()
 
+        // create scene uniform buffers
         const cameraUniformBufferSize = 4 * 4 * 4 + // 4 x 4 float32 view matrix
             4 * 4 * 4 + // 4 x 4 float32 projection matrix
             3 * 4      // 3 * float32 camera position
@@ -291,18 +349,32 @@ class SceneRessources {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
 
+        // create scene bind group for unlit objects
         const bindGroupLayoutEntries = [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY]
-
         const bindGroupEntries: GPUBindGroupEntry[] = [{
             binding: 0,
             resource: {
                 buffer: this.cameraUniformBuffer
             }
         }]
-
-        var bindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
+        var bindGroupLayout = OBI.device.createBindGroupLayout({ label: "Unlit Bind Group Layout", entries: bindGroupLayoutEntries })
         this.bindGroupUnLit = OBI.device.createBindGroup({
             label: 'Scene Unlit Binding Group',
+            layout: bindGroupLayout,
+            entries: bindGroupEntries
+        })
+
+        // create scene bind group for ambient only pre pass
+        bindGroupLayoutEntries.push(Shader.DEFAULT_AMBIENT_LIGHT_BINDGROUPENTRY)
+        bindGroupEntries.push({
+            binding: 1, // the ambient info
+            resource: {
+                buffer: this.ambientLightUniformBuffer
+            }
+        })
+        bindGroupLayout = OBI.device.createBindGroupLayout({ label: "Ambient Only Bind Group Layout", entries: bindGroupLayoutEntries })
+        this.bindGroupAmbientOnly = OBI.device.createBindGroup({
+            label: 'Scene Ambient Only Binding Group',
             layout: bindGroupLayout,
             entries: bindGroupEntries
         })
@@ -328,7 +400,7 @@ class SceneRessources {
 
                 lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.viewMatrix, 0)
                 lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.projectionMatrix, 16)
-                lightRessource.shadowCameraUniformF32Array.set( camera.getPosition(), 32)
+                lightRessource.shadowCameraUniformF32Array.set(camera.getPosition(), 32)
                 OBI.device.queue.writeBuffer(lightRessource.shadowCameraUniformBuffer, 0, lightRessource.shadowCameraUniformF32Array)
 
                 OBI.device.queue.writeBuffer(lightRessource.lightMatrixUniformBuffer, 0, light.shadowProjector.lightMatrix as Float32Array)
@@ -399,19 +471,19 @@ class LightRessource {
         }]
 
         // ambient lighting data binding
-        bindGroupLayoutEntries.push({
-            binding: 1,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: {
-                type: 'uniform',
-            }
-        })
-        bindGroupEntries.push({
-            binding: 1, // the ambient info
-            resource: {
-                buffer: ambientLightBuffer
-            }
-        })
+        // bindGroupLayoutEntries.push({
+        //     binding: 1,
+        //     visibility: GPUShaderStage.FRAGMENT,
+        //     buffer: {
+        //         type: 'uniform',
+        //     }
+        // })
+        // bindGroupEntries.push({
+        //     binding: 1, // the ambient info
+        //     resource: {
+        //         buffer: ambientLightBuffer
+        //     }
+        // })
 
         // point/dir/spot lighting data binding
         bindGroupLayoutEntries.push({
@@ -435,41 +507,43 @@ class LightRessource {
             entries: bindGroupEntries
         })
 
-        // shadow bind group
-        Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
-        bindGroupEntries.push({
-            binding: 3,
-            resource: light.shadowProjector.shadowMapView
-        })
-        bindGroupEntries.push({
-            binding: 4,
-            resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
-                compare: 'less',
+        if (light.castShadows) {
+            // shadow bind group
+            Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
+            bindGroupEntries.push({
+                binding: 3,
+                resource: light.shadowProjector.shadowMapView
             })
-        })
-        bindGroupEntries.push({
-            binding: 5,
-            resource: { buffer: this.lightMatrixUniformBuffer }
-        })
+            bindGroupEntries.push({
+                binding: 4,
+                resource: OBI.device.createSampler({    // use comparison sampler for shadow mapping
+                    compare: 'less',
+                })
+            })
+            bindGroupEntries.push({
+                binding: 5,
+                resource: { buffer: this.lightMatrixUniformBuffer }
+            })
 
-        const shadowsBindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
-        this.lightBindGroupWithShadows = OBI.device.createBindGroup({
-            label: 'Scene Binding Group',
-            layout: shadowsBindGroupLayout,
-            entries: bindGroupEntries
-        })
+            const shadowsBindGroupLayout = OBI.device.createBindGroupLayout({ entries: bindGroupLayoutEntries })
+            this.lightBindGroupWithShadows = OBI.device.createBindGroup({
+                label: 'Scene Binding Group',
+                layout: shadowsBindGroupLayout,
+                entries: bindGroupEntries
+            })
 
-        const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY] })
-        this.shadowCameraBindGroup = OBI.device.createBindGroup({
-            label: 'Shadow Camera Bind Group',
-            layout: shadowCameraBindGroupLayout,
-            entries: [{
-                binding: 0, // camera data
-                resource: {
-                    buffer: this.shadowCameraUniformBuffer
-                }
-            }]
-        })
+            const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY] })
+            this.shadowCameraBindGroup = OBI.device.createBindGroup({
+                label: 'Shadow Camera Bind Group',
+                layout: shadowCameraBindGroupLayout,
+                entries: [{
+                    binding: 0, // camera data
+                    resource: {
+                        buffer: this.shadowCameraUniformBuffer
+                    }
+                }]
+            })
+        }
     }
 }
 

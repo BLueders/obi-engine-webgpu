@@ -1,6 +1,8 @@
 import OBI from "./obi";
-import vertexShaderSrc from "../../shaders/standard-vert.wgsl"
-import fragShaderSrc from "../../shaders/standard-frag.wgsl"
+import standardVertexShaderSrc from "../../shaders/standard-vert.wgsl"
+import standardFragShaderSrc from "../../shaders/standard-frag.wgsl"
+import ambientOnlyVertShaderSrc from "../../shaders/ambient-only-vert.wgsl"
+import ambientOnlyFragShaderSrc from "../../shaders/ambient-only-frag.wgsl"
 import { preprocessShader } from "./preprocessor";
 import shadowShaderSrc from "../../shaders/shadowpass-vert.wgsl";
 import simpleRedShaderSrc from "../../shaders/simple-red-frag.wgsl";
@@ -8,6 +10,7 @@ import Shader from "./shader";
 import { stringHash } from "../utils/utils";
 
 export class ShaderLibrary {
+
     static shaderCache: Map<number, Shader> = new Map<number, Shader>()
 
     static getZ_OnlyPassShader(): Shader {
@@ -46,6 +49,26 @@ export class ShaderLibrary {
         return shader
     }
 
+    static getAmbientOnlyPassShader(flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>): Shader {
+        const label = "OBI Ambient Light Pre Pass Shader "
+        const flagsCopy = new Set<string>(flags)
+        flagsCopy.add(Shader.AMBIENT_LIGHT_PASS)
+
+        const depthStencil = {
+            depthWriteEnabled: true,
+            depthCompare: 'less',
+            format: 'depth24plus-stencil8',
+            stencilFront: {
+                passOp: 'increment-clamp'
+            }
+        } as GPUDepthStencilState
+
+        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, depthStencil, undefined,
+            ambientOnlyVertShaderSrc, ambientOnlyFragShaderSrc)
+        console.log("Created Ambient Light Pass variant for: " + Array.from(flagsCopy.values()))
+        return shader
+    }
+
     static getAdditiveDirLightShader(flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>): Shader {
         const label = "OBI Directional Light Pass Shader "
         const flagsCopy = new Set<string>(flags)
@@ -76,21 +99,22 @@ export class ShaderLibrary {
         return shader
     }
 
-    static createShaderVariantWithFlags(label: string, flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>, depthstencil?: GPUDepthStencilState, blending?:GPUBlendState){
+    static createShaderVariantWithFlags(label: string, flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>, 
+        depthstencil?: GPUDepthStencilState, blending?:GPUBlendState, vertexShaderSrc?:string, fragShaderSrc?:string){
         const hash = stringHash(label + Array.from(flags.values()))
 
         if (this.shaderCache.has(hash))
             return this.shaderCache.get(hash)
 
         // Make bind group layouts
-        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(flags) })
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(flags) })
+        const modelBindGroupLayout = OBI.device.createBindGroupLayout({ label: label+",Model Bind Group Layout", entries: Shader.getStandardModelBindGroupEntries(flags) })
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ label: label+",Scene Bind Group Layout", entries: Shader.getStandardSceneBindGroupEntries(flags) })
         const bindgroupLayouts = [modelBindGroupLayout, sceneBindGroupLayout]
         // push group 2 if exists, else push empty, to be able to push 3 if exists
         if (materialBindGroupLayouts.has(2))
             bindgroupLayouts.push(materialBindGroupLayouts.get(2))
         else
-            bindgroupLayouts.push(OBI.device.createBindGroupLayout({ entries: [] }))
+            bindgroupLayouts.push(OBI.device.createBindGroupLayout({ label: "Material Bind Group Layout", entries: [] }))
         if (materialBindGroupLayouts.has(3))
             bindgroupLayouts.push(materialBindGroupLayouts.get(3))
             
@@ -98,6 +122,11 @@ export class ShaderLibrary {
         if(!depthstencil)
             depthstencil = Shader.DEFAULT_DEPTHSTENCIL_STATE
         
+        if(!vertexShaderSrc)
+            vertexShaderSrc = standardVertexShaderSrc
+        if(!fragShaderSrc)
+            fragShaderSrc = standardFragShaderSrc
+
         const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, depthstencil, bindgroupLayouts, blending)
 
         const shader = new Shader(hash, renderPipeline)
@@ -171,7 +200,7 @@ export class ShaderLibrary {
 
         const pipeline = OBI.device.createRenderPipeline({
             label: label + Array.from(flags.values()),
-            layout: OBI.device.createPipelineLayout({ label: "Layout Descriptor for: " + label, bindGroupLayouts: bindgroupLayouts }),
+            layout: OBI.device.createPipelineLayout({ label: "Pipeline Layout for: " + label, bindGroupLayouts: bindgroupLayouts }),
             vertex: vertexState,
             fragment: fragmentState,
             primitive: {

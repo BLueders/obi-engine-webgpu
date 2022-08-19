@@ -42,13 +42,14 @@ async function run() {
 
     const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
 
-    const NUM_MODELS = 5
-    const NUM_MATERIALS = 5
+    const NUM_MODELS = 50
+    const NUM_MATERIALS = 50
     
     const materials: StandardMaterial[] = []
     for (let i = 0; i < NUM_MATERIALS; i++) {
         const alpha = Math.random() > 0.5 ? 1 : 0.5
         const mat = new StandardMaterial(vec4.fromValues(Math.random(), Math.random(), Math.random(), alpha))
+        mat.setAlbedoMap(albedoMap)
         Math.random() > 0.5 ? mat.setAlbedoMap(albedoMap) : undefined
         Math.random() > 0.5 ? mat.setNormalMap(normalMap) : undefined
         mat.lighting = Lighting.BlinnPhong
@@ -76,29 +77,42 @@ async function run() {
     const model = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -0.5, 0), quat.create(), vec3.fromValues(10, 1, 10))
     scene.addModel(model)
 
-    // const LIGHTCOUNT = 10
-    // const lights: Light[] = []
-    // for (let i = 0; i < LIGHTCOUNT; i++) {
-    //     const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 15, 6, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 15))
-    //     pointLight.range = 15
-    //     pointLight.intensity = 20
-    //     pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
-    //     scene.addLight(pointLight)
-    //     lights.push(pointLight)
-    // }
-    scene.prepare()
-
     const dirLight = new Light(LightType.Directional, vec3.fromValues(0, 5, 0), quat.fromEuler(quat.create(), 0.5, 0, 0))
     dirLight.color = vec3.fromValues(1, 1, 1)
+    dirLight.enableShadows()
     scene.addLight(dirLight)
+
+    const LIGHTCOUNT = 10
+    const lights: Light[] = []
+    for (let i = 0; i < LIGHTCOUNT; i++) {
+        const pointLight = new Light(LightType.Point, vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI) * 10, 1, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI) * 10))
+        pointLight.range = 10
+        pointLight.intensity = 5
+        pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
+        scene.addLight(pointLight)
+        lights.push(pointLight)
+    }
+
+    scene.prepare()
 
     function frame() {
 
         if(Input.keyDown("space")){
-            for (let i = 0; i < NUM_MATERIALS; i++) {
-                materials[i].setAlbedoMap(albedoMap)
-                materials[i].setNormalMap(normalMap)
-            }
+            // for (let i = 0; i < NUM_MATERIALS; i++) {
+            //     materials[i].setAlbedoMap(albedoMap)
+            //     materials[i].setNormalMap(normalMap)
+            // }
+            const pointLight = new Light(LightType.Point, vec3.fromValues(10, 1, 10))
+            pointLight.range = 10
+            pointLight.intensity = 5
+            pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
+            scene.addLight(pointLight)
+            lights.push(pointLight)
+        }
+
+        for (let i = 0; i < LIGHTCOUNT; i++) {
+            const time = performance.now()/1000
+            lights[i].transform.position = vec3.fromValues(Math.sin((i / LIGHTCOUNT) * 2 * Math.PI + time) * 10, 1, Math.cos((i / LIGHTCOUNT) * 2 * Math.PI + time) * 10)
         }
 
         quat.fromEuler(dirLight.transform.rotation, 25, performance.now() / 50, 0)
