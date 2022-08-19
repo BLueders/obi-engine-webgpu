@@ -1,3 +1,4 @@
+import { WebGPUMipmapGenerator } from "../utils/webgpu-mipmap-generator";
 import OBI from "./obi";
 
 export class Texture {
@@ -18,19 +19,29 @@ export class Texture {
 
         const texture = new Texture(bitmap.width, bitmap.height)
 
-        texture.gpuTexture = OBI.device.createTexture({
+        const mipLevels = Math.floor (Math.log2 (bitmap.width)) + 1
+
+        const textureDescriptor = {
             size: textureSize,
+            mipLevelCount: mipLevels,
             format: 'rgba8unorm',   // default RGBA
             usage:
                 GPUTextureUsage.TEXTURE_BINDING |   // can be bound by groups
                 GPUTextureUsage.COPY_DST |          // can be written to by JS to update
                 GPUTextureUsage.RENDER_ATTACHMENT   // can be used as attachment to render pass
-        })
+        } as GPUTextureDescriptor
+
+        texture.gpuTexture = OBI.device.createTexture(textureDescriptor)
         OBI.device.queue.copyExternalImageToTexture(
             { source: bitmap },   // from where
             { texture: texture.gpuTexture }, // to where
             textureSize         // how much
         )
+
+        /* -- create mipmap for texture -- */
+        const mipmapGenerator = new WebGPUMipmapGenerator(OBI.device)
+        mipmapGenerator.generateMipmap(texture.gpuTexture, textureDescriptor)
+
         return texture;
     }
 

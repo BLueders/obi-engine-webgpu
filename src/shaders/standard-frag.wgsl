@@ -4,7 +4,7 @@
 // Scene bind group
 @group(1) @binding(0) var<uniform> scene : Scene;
 #if BLINNPHONG_LIGHTING
-@group(1) @binding(1) var<uniform> ambientLightColor : vec4<f32>;
+//@group(1) @binding(1) var<uniform> ambientLightColor : vec4<f32>;
 @group(1) @binding(2) var<uniform> lightData : Light;
 #if RECEIVES_SHADOWS
     @group(1) @binding(3) var dirShadowMap: texture_depth_2d;
@@ -28,8 +28,8 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     var finalColor : vec3<f32>;
 
 #if BLINNPHONG_LIGHTING
-    var ambient = ambientLightColor;
-    ambient = vec4<f32>(0,0,0,0);
+    //var ambient = ambientLightColor;
+    //ambient = vec4<f32>(0,0,0,0);
     var dirDir = lightData.direction.xyz;
     var dirColor = lightData.color.rgb;
 
@@ -37,12 +37,11 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
 
     var lightResult = vec3(0.0, 0.0, 0.0);
     // ambient
-    lightResult += ambient.rgb * ambient.a; // alpha = intensity
-
+    //lightResult += ambient.rgb * ambient.a; // alpha = intensity
+#if DIRECTIONAL_LIGHT_PASS
     var dirBlinnPhong = blinnphongDirLight(dirDir, dirColor, normal, viewDir);
 
 #if RECEIVES_SHADOWS
-
     var inRange = f32(in.shadowPos.x >= 0.0 &&
                   in.shadowPos.x <= 1.0 &&
                   in.shadowPos.y >= 0.0 &&
@@ -77,16 +76,14 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     //             shadowPos.xy - biasOffset.xy, 
     //             shadowPos.z// - bias  // apply a small bias to avoid acne
     //         );
-
     dirBlinnPhong *= clamp(shadow + (1-inRange),0,1);
-
+#endif
+    lightResult += dirBlinnPhong;
 #endif
 
-    lightResult += dirBlinnPhong;
-
-    // for(var i = 0; i < 3; i++){
-    //     lightResult += blinnphongPointLight(pointlightData[i], normal, viewDir, in.worldPosition.xyz);
-    // }
+#if POINT_LIGHT_PASS
+   lightResult += blinnphongPointLight(lightData, normal, viewDir, in.worldPosition.xyz);
+#endif
 
     finalColor = color.rgb * lightResult;
 

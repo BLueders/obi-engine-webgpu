@@ -61,7 +61,7 @@ fn blinnphongPointLight(data: Light, normal:vec3<f32>, viewDir:vec3<f32>, worldP
     var pointIntensity = data.intensity;
     var L = pointPosition - worldPosition.xyz;
     var distance = length(L);
-    if(distance < pointRadius){
+//    if(distance < pointRadius){
         
         var diffuse = max(dot(normalize(L), normal), 0.0) * pointColor.rgb;
 
@@ -70,10 +70,13 @@ fn blinnphongPointLight(data: Light, normal:vec3<f32>, viewDir:vec3<f32>, worldP
         var specular = spec * pointColor.rgb;
 
 
-        var distanceFactor: f32 = pow(1.0 - distance / pointRadius, 2.0);
-        return (diffuse* pointIntensity + specular) * distanceFactor;
-    }  
+        //var distanceFactor: f32 = pow(1.0 - distance / pointRadius, 2.0);
+        var attenuation: f32 = clamp(1.0 - distance*distance/(pointRadius*pointRadius), 0.0, 1.0); 
+        attenuation *= attenuation;
 
-    return vec3<f32>(0);
+        return (diffuse* pointIntensity + specular) * attenuation;
+//   }  
+
+//    return vec3<f32>(0);
 }
 
