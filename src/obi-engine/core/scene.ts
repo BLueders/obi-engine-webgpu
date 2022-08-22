@@ -2,7 +2,7 @@ import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix"
 import { toMat4 } from "../utils/utils"
 import { Camera } from "./camera"
 import Environment from "./environment"
-import { Light, LightType } from "./light"
+import { Light, LightType, PointShadowProjector } from "./light"
 import { Material, MaterialStatus } from "./material"
 import Mesh from "./mesh"
 import Model from "./model"
@@ -23,16 +23,19 @@ export default class Scene {
     lights: Light[]
 
     materials: Map<Material, Map<Mesh, Model[]>>
-    shadowShader: Shader
+    shadowShaderDirSpot: Shader
+    shadowShaderPoint: Shader
 
     sceneRessources: SceneRessources
+
 
     constructor(environment: Environment) {
         this.sceneGraph = new SceneGraph()
 
         this.mainCamera = new Camera()
         this.materials = new Map<Material, Map<Mesh, Model[]>>()
-        this.shadowShader = ShaderLibrary.getShadowShader()
+        this.shadowShaderDirSpot = ShaderLibrary.getShadowShader(LightType.Directional)
+        this.shadowShaderPoint = ShaderLibrary.getShadowShader(LightType.Point)
 
         this.sceneRessources = new SceneRessources()
 
@@ -82,36 +85,69 @@ export default class Scene {
         // SHADOW PASS
         this.lights.forEach(light => {
             if (!light.castShadows) return
-            if (light.type !== LightType.Directional) return
-            const shadowPassDescriptor: GPURenderPassDescriptor = {
-                colorAttachments: [],
-                depthStencilAttachment: {
-                    view: light.shadowProjector.shadowMapView,
-                    depthClearValue: 1.0,
-                    depthLoadOp: 'clear',
-                    depthStoreOp: 'store',
+            if (light.type == LightType.Directional) {
+                const shadowPassDescriptor: GPURenderPassDescriptor = {
+                    colorAttachments: [],
+                    depthStencilAttachment: {
+                        view: light.shadowProjector.shadowMapView,
+                        depthClearValue: 1.0,
+                        depthLoadOp: 'clear',
+                        depthStoreOp: 'store',
+                    }
                 }
-            }
+                const shadowPassEndcoder = commandEncoder.beginRenderPass(shadowPassDescriptor)
+                shadowPassEndcoder.setPipeline(this.shadowShaderDirSpot.renderPipeline)
 
-            const shadowPassEndcoder = commandEncoder.beginRenderPass(shadowPassDescriptor)
-            shadowPassEndcoder.setPipeline(this.shadowShader.renderPipeline)
+                this.materials.forEach((meshes, material) => {
+                    meshes.forEach((models, mesh) => {
+                        // set vertex
+                        shadowPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
+                        shadowPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+                        models.forEach(model => {
+                            if (!model.material.castShadows)
+                                return
 
-            this.materials.forEach((meshes, material) => {
-                meshes.forEach((models, mesh) => {
-                    // set vertex
-                    shadowPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
-                    shadowPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
-                    models.forEach(model => {
-                        if (!model.material.castShadows)
-                            return
-
-                        shadowPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
-                        shadowPassEndcoder.setBindGroup(1, this.sceneRessources.lightRessources.get(light).shadowCameraBindGroup)
-                        shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
+                            shadowPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
+                            shadowPassEndcoder.setBindGroup(1, this.sceneRessources.lightRessources.get(light).shadowCameraBindGroups[0])
+                            shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
+                        })
                     })
                 })
-            })
-            shadowPassEndcoder.end()
+                shadowPassEndcoder.end()
+            }
+            if (light.type == LightType.Point) {
+                for (let i = 0; i < 6; i++) { // Render each face of the cube seperately
+                    const projector = light.shadowProjector as PointShadowProjector
+                    const shadowPassDescriptor: GPURenderPassDescriptor = {
+                        colorAttachments: [],
+                        depthStencilAttachment: {
+                            view: projector.shadowMapRenderTargets[i],
+                            depthClearValue: 1.0,
+                            depthLoadOp: 'clear',
+                            depthStoreOp: 'store',
+                        }
+                    }
+                    const shadowPassEndcoder = commandEncoder.beginRenderPass(shadowPassDescriptor)
+                    shadowPassEndcoder.setPipeline(this.shadowShaderPoint.renderPipeline)
+
+                    this.materials.forEach((meshes, material) => {
+                        meshes.forEach((models, mesh) => {
+                            // set vertex
+                            shadowPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
+                            shadowPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+                            models.forEach(model => {
+                                if (!model.material.castShadows)
+                                    return
+
+                                shadowPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
+                                shadowPassEndcoder.setBindGroup(1, this.sceneRessources.lightRessources.get(light).shadowCameraBindGroups[i])
+                                shadowPassEndcoder.drawIndexed(model.mesh.vertexCount)
+                            })
+                        })
+                    })
+                    shadowPassEndcoder.end()
+                }
+            }
         })
 
         // Z-ONLY LIGHTING PRE PASS
@@ -199,14 +235,15 @@ export default class Scene {
                 stencilStoreOp: 'discard'
             }
         }
+        //this.environment.createBindGroups((this.lights[0].shadowProjector as PointShadowProjector).shadowMap)
         const renderPassEncoder = commandEncoder.beginRenderPass(renderPassDescriptor)
         this.environment.drawSkybox(renderPassEncoder, camera)
         renderPassEncoder.end()
 
-        // DIR Light RENDER PASS
+        // Light RENDER PASS
         let skippedByDistance = 0
         this.lights.forEach(light => {
-            //if (light.type != LightType.Directional) return
+
 
             const renderPassDescriptor: GPURenderPassDescriptor = {
                 colorAttachments: [
@@ -272,10 +309,10 @@ export default class Scene {
 
                         renderPassEncoder.setBindGroup(0, model.modelBindGroup)
 
-                        if(light.type === LightType.Point || light.type === LightType.Spot){
+                        if (light.type === LightType.Point || light.type === LightType.Spot) {
                             let dist = vec3.dist(light.transform.position, model.transform.position)
                             dist -= mesh.aabbHalfWidth * Math.max(model.transform.scale[0], model.transform.scale[1], model.transform.scale[2])
-                            if(dist > light.range){
+                            if (dist > light.range) {
                                 skippedByDistance++
                                 return
                             }
@@ -398,11 +435,22 @@ class SceneRessources {
             if (light.castShadows) {
                 light.shadowProjector.update(camera.getPosition())
 
-                lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.viewMatrix, 0)
-                lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.projectionMatrix, 16)
-                lightRessource.shadowCameraUniformF32Array.set(camera.getPosition(), 32)
-                OBI.device.queue.writeBuffer(lightRessource.shadowCameraUniformBuffer, 0, lightRessource.shadowCameraUniformF32Array)
+                if (light.type == LightType.Directional || light.type == LightType.Spot) {
+                    lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.viewMatrix, 0)
+                    lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.projectionMatrix, 16)
+                    lightRessource.shadowCameraUniformF32Array.set(camera.getPosition(), 32)
+                    OBI.device.queue.writeBuffer(lightRessource.shadowCameraUniformBuffers[0], 0, lightRessource.shadowCameraUniformF32Array)
+                }
 
+                if (light.type == LightType.Point) {
+                    for (let i = 0; i < lightRessource.shadowCameraUniformBuffers.length; i++) {
+                        const projector = light.shadowProjector as PointShadowProjector
+                        lightRessource.shadowCameraUniformF32Array.set(projector.viewMatrixArray[i], 0)
+                        lightRessource.shadowCameraUniformF32Array.set(light.shadowProjector.projectionMatrix, 16)
+                        lightRessource.shadowCameraUniformF32Array.set(light.transform.position, 32)
+                        OBI.device.queue.writeBuffer(lightRessource.shadowCameraUniformBuffers[i], 0, lightRessource.shadowCameraUniformF32Array)
+                    }
+                }
                 OBI.device.queue.writeBuffer(lightRessource.lightMatrixUniformBuffer, 0, light.shadowProjector.lightMatrix as Float32Array)
             }
 
@@ -423,11 +471,11 @@ class LightRessource {
     lightUniformBuffer: GPUBuffer
     lightMatrixUniformBuffer: GPUBuffer
     shadowCameraUniformF32Array: Float32Array
-    shadowCameraUniformBuffer: GPUBuffer
+    shadowCameraUniformBuffers: GPUBuffer[]
     lightBindGroupWithShadows: GPUBindGroup
     lightBindGroup: GPUBindGroup
     light: Light
-    shadowCameraBindGroup: GPUBindGroup
+    shadowCameraBindGroups: GPUBindGroup[]
 
     constructor(light: Light, cameraUniformBuffer: GPUBuffer, ambientLightBuffer: GPUBuffer) {
         this.light = light
@@ -442,11 +490,24 @@ class LightRessource {
             4 * 4 * 4 + // 4 x 4 float32 projection matrix
             3 * 4       // 3 * float32 camera position
         this.shadowCameraUniformF32Array = new Float32Array(shadowCameraUniformBufferSize / 4)
-        this.shadowCameraUniformBuffer = OBI.device.createBuffer({
-            label: 'GPUBuffer Shadow Camera Data',
-            size: shadowCameraUniformBufferSize,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
+        if (light.type == LightType.Directional || light.type == LightType.Spot) {
+            this.shadowCameraUniformBuffers = [OBI.device.createBuffer({
+                label: 'GPUBuffer Shadow Camera Data',
+                size: shadowCameraUniformBufferSize,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            })]
+        }
+        if (light.type == LightType.Point) {
+            this.shadowCameraUniformBuffers = []
+            for (let i = 0; i < 6; i++) {
+                this.shadowCameraUniformBuffers.push(OBI.device.createBuffer({
+                    label: 'GPUBuffer Shadow Camera Data',
+                    size: shadowCameraUniformBufferSize,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                })
+                )
+            }
+        }
 
         const lightUniformBufferSize = 4 * 4 + // position
             4 * 4 + // direction
@@ -470,20 +531,7 @@ class LightRessource {
             }
         }]
 
-        // ambient lighting data binding
-        // bindGroupLayoutEntries.push({
-        //     binding: 1,
-        //     visibility: GPUShaderStage.FRAGMENT,
-        //     buffer: {
-        //         type: 'uniform',
-        //     }
-        // })
-        // bindGroupEntries.push({
-        //     binding: 1, // the ambient info
-        //     resource: {
-        //         buffer: ambientLightBuffer
-        //     }
-        // })
+        // Skip ambient light data binding, since its handled in the ambient only pass
 
         // point/dir/spot lighting data binding
         bindGroupLayoutEntries.push({
@@ -509,7 +557,10 @@ class LightRessource {
 
         if (light.castShadows) {
             // shadow bind group
-            Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
+            if (light.type == LightType.Directional || light.type == LightType.Spot)
+                Shader.DEFAULT_2d_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
+            if (light.type == LightType.Point)
+                Shader.DEFAULT_cube_SHADOW_BINDGROUPENTRIES.forEach(value => bindGroupLayoutEntries.push(value))
             bindGroupEntries.push({
                 binding: 3,
                 resource: light.shadowProjector.shadowMapView
@@ -532,17 +583,40 @@ class LightRessource {
                 entries: bindGroupEntries
             })
 
-            const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY] })
-            this.shadowCameraBindGroup = OBI.device.createBindGroup({
-                label: 'Shadow Camera Bind Group',
-                layout: shadowCameraBindGroupLayout,
-                entries: [{
-                    binding: 0, // camera data
-                    resource: {
-                        buffer: this.shadowCameraUniformBuffer
-                    }
-                }]
-            })
+            if (light.type == LightType.Directional || light.type == LightType.Spot) {
+                const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY] })
+                this.shadowCameraBindGroups = [OBI.device.createBindGroup({
+                    label: 'Shadow Pass Scene Bind Group',
+                    layout: shadowCameraBindGroupLayout,
+                    entries: [{
+                        binding: 0, // camera data
+                        resource: {
+                            buffer: this.shadowCameraUniformBuffers[0]
+                        }
+                    }]
+                })]
+            }
+            if (light.type == LightType.Point) {
+                const shadowCameraBindGroupLayout = OBI.device.createBindGroupLayout({ entries: [Shader.DEFAULT_CAMERA_BINDGROUPLAYOUTENTRY, Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRY] })
+                this.shadowCameraBindGroups = []
+                for (let i = 0; i < 6; i++) {
+                    this.shadowCameraBindGroups.push(OBI.device.createBindGroup({
+                        label: 'Shadow Pass Scene Bind Group',
+                        layout: shadowCameraBindGroupLayout,
+                        entries: [{
+                            binding: 0, // camera data
+                            resource: {
+                                buffer: this.shadowCameraUniformBuffers[i]
+                            }
+                        }, {
+                            binding: 2, // light data
+                            resource: {
+                                buffer: this.lightUniformBuffer
+                            }
+                        }]
+                    }))
+                }
+            }
         }
     }
 }

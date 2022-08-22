@@ -32,7 +32,7 @@ export default class LitMaterial extends Material {
             //this.renderPassMap.set(RenderPassType.Opaque_Spot_Light_NoShadows, ShaderLibrary.getAdditiveSpotLightShader(this.flags, this.uniformLayouts))
         }
         if(this.flags.has(Shader.CAST_SHADOWS_FLAG)){
-            this.renderPassMap.set(RenderPassType.Opaque_Shadow, ShaderLibrary.getShadowShader())
+            //this.renderPassMap.set(RenderPassType.Opaque_Shadow, ShaderLibrary.getShadowShader())
         }
         this.createMaterialBindGroups()
         this.status = MaterialStatus.Valid

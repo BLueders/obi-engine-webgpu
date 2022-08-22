@@ -17,8 +17,11 @@ fn vert(@location(0) position : vec4<f32>,) -> VertexOut {
 
 @group(1) @binding(0) var defaultSampler : sampler;
 @group(1) @binding(1) var cubeMap : texture_cube<f32>;
+//@group(1) @binding(1) var cubeMap : texture_depth_cube;
 
 @fragment
-fn frag(in: VertexOut) -> @location(0) vec4<f32> { 
-    return textureSample(cubeMap, defaultSampler, in.uvw);
+fn frag(in: VertexOut) -> @location(0) vec4<f32> {
+    var color = textureSample(cubeMap, defaultSampler, in.uvw);
+    return color;
+    //return vec4<f32>(color);
 }

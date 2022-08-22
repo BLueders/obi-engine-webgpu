@@ -55,7 +55,7 @@ export default class Shader {
         }
     }
 
-    static DEFAULT_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [
+    static DEFAULT_2d_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [
         {
             binding: 3,
             visibility: GPUShaderStage.FRAGMENT,
@@ -76,6 +76,28 @@ export default class Shader {
                 type: 'uniform',
             },
         }]
+
+        static DEFAULT_cube_SHADOW_BINDGROUPENTRIES: GPUBindGroupLayoutEntry[] = [
+            {
+                binding: 3,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: {
+                    sampleType: 'depth',
+                    viewDimension: 'cube'
+                }
+            }, {
+                binding: 4,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler: {
+                    type: 'comparison',
+                },
+            }, {
+                binding: 5,
+                visibility: GPUShaderStage.VERTEX,
+                buffer: {
+                    type: 'uniform',
+                },
+            }]
 
     static DEFAULT_ADDITIVE_LIGHT_BLENDSTATE: GPUBlendState = {
         color: {
@@ -137,6 +159,16 @@ export default class Shader {
         this.renderPipeline = renderPipeline
     }
 
+    static getAdditiveLightingColorTargets(): Iterable<GPUColorTargetState>{
+        const state = {
+            format: OBI.format,
+            blend: Shader.DEFAULT_ADDITIVE_LIGHT_BLENDSTATE,
+        } as GPUColorTargetState
+        return [
+            state
+        ]
+    }
+
     static getStandardModelBindGroupEntries(flags: Set<string>) {
         const modelBindGroupEntries = [Shader.DEFAULT_MODEL_BINDGROUPLAYOUTENTRY]
         return modelBindGroupEntries
@@ -152,7 +184,10 @@ export default class Shader {
             sceneBindGroupEntries.push(Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRY)
         }
         if (flags.has(Shader.RECEIVE_SHADOWS_FLAG)) {
-            Shader.DEFAULT_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))
+            if(flags.has(Shader.DIRECTIONAL_LIGHT_PASS) || flags.has(Shader.SPOT_LIGHT_PASS))
+                Shader.DEFAULT_2d_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))
+            if(flags.has(Shader.POINT_LIGHT_PASS))
+                Shader.DEFAULT_cube_SHADOW_BINDGROUPENTRIES.forEach(value => sceneBindGroupEntries.push(value))
         }
         return sceneBindGroupEntries
     }

@@ -4,9 +4,10 @@
 @group(1) @binding(0) var<uniform> scene : Scene;
 
 @vertex
-fn main(in : VertexIn) -> @builtin(position) vec4<f32>{
-   
-    var out = scene.projectionMatrix * scene.viewMatrix * model.modelMatrix * in.position;
-    
+fn main(in : VertexIn) -> VertexOut {
+
+    var out: VertexOut;
+    out.position = scene.projectionMatrix * scene.viewMatrix * model.modelMatrix * in.position;
+    out.worldPosition = model.modelMatrix * in.position;
     return out;
 }

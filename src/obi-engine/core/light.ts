@@ -1,11 +1,6 @@
 import { mat3, mat4, quat, vec3, vec4 } from "gl-matrix";
-import StandardMaterial from "./standard-material";
-import Model from "./model";
 import OBI from "./obi";
-import Primitives from "./primitives";
-import Scene from "./scene";
 import { Transform } from "./transform";
-import Shader from "./shader";
 
 export enum LightType {
     Directional,
@@ -35,9 +30,18 @@ export class Light {
         this.outerSpotAngle = 0
     }
 
-    enableShadows(){
+    enableShadows() {
         this.castShadows = true
-        this.shadowProjector = new ShadowProjector(this)
+        switch(this.type){
+            case LightType.Directional:
+                this.shadowProjector = new DirectionalShadowProjector(this)
+            break
+            case LightType.Point:
+                this.shadowProjector = new PointShadowProjector(this)
+            break
+            case LightType.Spot:
+            break
+        }
     }
 }
 
@@ -59,29 +63,33 @@ class ShadowProjector {
     light: Light
     projection: ShadowProjection
 
-    constructor(light: Light) {
+    constructor(light:Light){
         this.light = light
 
         this.lightMatrix = mat4.create()
         this.projectionMatrix = mat4.create()
         this.modelMatrix = mat4.create()
         this.viewMatrix = mat4.create()
+    }
 
-        switch (light.type) {
-            case LightType.Directional:
-                this.shadowMap = OBI.device.createTexture({
-                    size: [OBI.SHADOWMAP_RES, OBI.SHADOWMAP_RES, 1],
-                    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-                    format: 'depth32float'
-                });
-                this.shadowMapView = this.shadowMap.createView()
+    update(camPosition: vec3) {
+        throw new Error("Not implemented")
+    }
+}
 
-                this.projection = ShadowProjection.Orthographic
-                break
-            default:
-                throw new Error("Not Implemented")
-                break
-        } 
+class DirectionalShadowProjector extends ShadowProjector {
+
+    constructor(light: Light) {
+        super(light)
+
+        this.shadowMap = OBI.device.createTexture({
+            size: [OBI.SHADOWMAP_RES, OBI.SHADOWMAP_RES, 1],
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            format: 'depth32float'
+        });
+        this.shadowMapView = this.shadowMap.createView()
+
+        this.projection = ShadowProjection.Orthographic
     }
 
     update(camPosition: vec3) {
@@ -107,8 +115,89 @@ class ShadowProjector {
             OBI.SHADOW_DISTANCE  // far
         );
 
-
         mat4.identity(this.lightMatrix)
         mat4.mul(this.lightMatrix, this.projectionMatrix, this.viewMatrix)
+    }
+}
+
+export class PointShadowProjector extends ShadowProjector {
+
+    viewMatrixArray:mat4[]
+    shadowMapRenderTargets: GPUTextureView[];
+
+    constructor(light: Light) {
+        super(light)
+        const rez = OBI.SHADOWMAP_RES / 4
+        this.shadowMap = OBI.device.createTexture({
+            dimension: '2d',
+            // Create a 2d array texture.
+            // Assume each image has the same size.
+            size: [rez, rez, 6],
+            //format: 'depth32float',
+            format: 'depth32float',
+            usage:
+            GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        });
+        this.shadowMapView = this.shadowMap.createView({dimension: 'cube'})
+        this.shadowMapRenderTargets = []
+        for(let i = 0; i < 6; i++){
+            this.shadowMapRenderTargets.push(this.shadowMap.createView({dimension: '2d', baseArrayLayer: i}))
+        }
+
+        this.projection = ShadowProjection.Perspective
+        this.viewMatrixArray = []
+        // 6 sides of the cube map => 6 view matrices
+        this.viewMatrixArray.push(mat4.create())
+        this.viewMatrixArray.push(mat4.create())
+        this.viewMatrixArray.push(mat4.create())
+        this.viewMatrixArray.push(mat4.create())
+        this.viewMatrixArray.push(mat4.create())
+        this.viewMatrixArray.push(mat4.create())
+    }
+
+    update(camPosition: vec3) {
+
+        let target = vec3.create()
+        let eye = this.light.transform.position
+
+        //this.viewMatrix = mat4.lookAt(this.viewMatrixArray[0], eye, target, vec3.fromValues(0,-1, 0))
+
+        //TODO: For some reason cubemap X coordinates are flipped?! This fixes it
+        const scalingFixMat = mat4.create()
+        mat4.fromScaling(scalingFixMat, vec3.fromValues(-1,1,1))
+
+        //mat4.lookAt(this.viewMatrixArray[0], eye, vec3.add(target, eye, vec3.fromValues( 1, 0, 0)), vec3.fromValues(0, 1, 0))
+        //Right +X
+        vec3.add(target, eye, vec3.fromValues( 1, 0, 0))
+        mat4.lookAt(this.viewMatrixArray[0], eye, target, vec3.fromValues(0, 1, 0))
+        mat4.mul(this.viewMatrixArray[0], scalingFixMat, this.viewMatrixArray[0])
+
+        //Left -X
+        vec3.add(target, eye, vec3.fromValues(-1, 0, 0))
+        mat4.lookAt(this.viewMatrixArray[1], eye, target, vec3.fromValues(0, 1, 0))
+        mat4.mul(this.viewMatrixArray[1], scalingFixMat, this.viewMatrixArray[1])
+
+        //UP +Y
+        vec3.add(target, eye, vec3.fromValues( 0, 1, 0))
+        mat4.lookAt(this.viewMatrixArray[2], eye, target, vec3.fromValues(0, 0,-1))
+        mat4.mul(this.viewMatrixArray[2], scalingFixMat, this.viewMatrixArray[2])
+
+        //Down -Y
+        vec3.add(target, eye, vec3.fromValues( 0,-1, 0))
+        mat4.lookAt(this.viewMatrixArray[3], eye, target, vec3.fromValues(0, 0, 1))
+        mat4.mul(this.viewMatrixArray[3], scalingFixMat, this.viewMatrixArray[3])
+
+        //Front +Z
+        vec3.add(target, eye, vec3.fromValues( 0, 0, 1))
+        mat4.lookAt(this.viewMatrixArray[4], eye, target, vec3.fromValues(0, 1, 0))
+        mat4.mul(this.viewMatrixArray[4], scalingFixMat, this.viewMatrixArray[4])
+
+        //Back -Z
+        vec3.add(target, eye, vec3.fromValues( 0, 0,-1))
+        mat4.lookAt(this.viewMatrixArray[5], eye, target, vec3.fromValues(0, 1, 0))
+        mat4.mul(this.viewMatrixArray[5], scalingFixMat, this.viewMatrixArray[5])
+
+        mat4.perspective(this.projectionMatrix, 90 * (Math.PI/180), 1, 0.1, this.light.range);
+        //mat4.perspective(this.projectionMatrix, 90 * (Math.PI/180), 1, 1, 25);
     }
 }

@@ -27,7 +27,7 @@ export class Camera {
     * @param {number} far distance to the far plane of the camera frustum, default 1000.
     * @param {number} aspectRatio aspect ratio of the target canvas/screen.
     */
-    constructor(fov: number = 45.0, near: number =  0.1, far: number = 1000.0, aspectRatio: number = OBI.canvasSize.width / OBI.canvasSize.height){
+    constructor(fov: number = 45.0 , near: number =  0.1, far: number = 1000.0, aspectRatio: number = OBI.canvasSize.width / OBI.canvasSize.height){
         this.aspectRatio = aspectRatio
         this.fov = fov
         this.near = near

@@ -73,10 +73,10 @@ export default class Environment {
         OBI.device.queue.writeBuffer(this.vertexBuffer, 0, f32array)
 
         this.createPipeline()
-        this.createBindGroups(cubeMap)
+        this.createBindGroups(cubeMap.cubemapTexture)
     }
 
-    createBindGroups(cubeMap:CubeMapTexture){
+    createBindGroups(cubeMap:GPUTexture){
 
         // uniform buffer
         this.viewBuffer = OBI.device.createBuffer({
@@ -128,7 +128,7 @@ export default class Environment {
                 },
                 {
                     binding: 1, 
-                    resource: cubeMap.cubemapTexture.createView({
+                    resource: cubeMap.createView({
                         dimension: 'cube',
                     })
                 }

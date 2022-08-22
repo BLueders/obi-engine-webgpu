@@ -4,10 +4,12 @@ import standardFragShaderSrc from "../../shaders/standard-frag.wgsl"
 import ambientOnlyVertShaderSrc from "../../shaders/ambient-only-vert.wgsl"
 import ambientOnlyFragShaderSrc from "../../shaders/ambient-only-frag.wgsl"
 import { preprocessShader } from "./preprocessor";
-import shadowShaderSrc from "../../shaders/shadowpass-vert.wgsl";
+import shadowVertShaderSrc from "../../shaders/shadowpass-vert.wgsl";
+import shadowCustomDepthFragSrc from "../../shaders/shadowpass-custom-depth-frag.wgsl";
 import simpleRedShaderSrc from "../../shaders/simple-red-frag.wgsl";
 import Shader from "./shader";
 import { stringHash } from "../utils/utils";
+import { LightType } from "./light";
 
 export class ShaderLibrary {
 
@@ -34,7 +36,7 @@ export class ShaderLibrary {
         const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(emtpyFlags) })
         const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(emtpyFlags) })
 
-        const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowShaderSrc, undefined, depthStencil, [modelBindGroupLayout, sceneBindGroupLayout])
+        const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowVertShaderSrc, undefined, depthStencil, [modelBindGroupLayout, sceneBindGroupLayout])
         console.log("Created Z-only pass Shader")
 
         const shader = new Shader(hash, renderPipeline)
@@ -63,7 +65,11 @@ export class ShaderLibrary {
             }
         } as GPUDepthStencilState
 
-        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, depthStencil, undefined,
+        const targets = [{
+                format: OBI.format
+            } as GPUColorTargetState]
+
+        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, depthStencil, targets,
             ambientOnlyVertShaderSrc, ambientOnlyFragShaderSrc)
         console.log("Created Ambient Light Pass variant for: " + Array.from(flagsCopy.values()))
         return shader
@@ -73,8 +79,8 @@ export class ShaderLibrary {
         const label = "OBI Directional Light Pass Shader "
         const flagsCopy = new Set<string>(flags)
         flagsCopy.add(Shader.DIRECTIONAL_LIGHT_PASS)
-        const blending = Shader.DEFAULT_ADDITIVE_LIGHT_BLENDSTATE
-        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, blending)
+        const targets = Shader.getAdditiveLightingColorTargets()
+        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, targets)
         console.log("Created Directional Light Pass variant for: " + Array.from(flagsCopy.values()))
         return shader
     }
@@ -83,8 +89,8 @@ export class ShaderLibrary {
         const label = "OBI Point Light Pass Shader "
         const flagsCopy = new Set<string>(flags)
         flagsCopy.add(Shader.POINT_LIGHT_PASS)
-        const blending = Shader.DEFAULT_ADDITIVE_LIGHT_BLENDSTATE
-        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, blending)
+        const targets = Shader.getAdditiveLightingColorTargets()
+        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, targets)
         console.log("Created Point Light Pass variant for: " + Array.from(flagsCopy.values()))
         return shader
     }
@@ -93,14 +99,14 @@ export class ShaderLibrary {
         const label = "OBI Spot Light Pass Shader "
         const flagsCopy = new Set<string>(flags)
         flagsCopy.add(Shader.SPOT_LIGHT_PASS)
-        const blending = Shader.DEFAULT_ADDITIVE_LIGHT_BLENDSTATE
-        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, blending)
+        const targets = Shader.getAdditiveLightingColorTargets()
+        const shader = ShaderLibrary.createShaderVariantWithFlags(label, flagsCopy, materialBindGroupLayouts, Shader.ADDITIVELIGHT_DEPTHSTENCIL_STATE, targets)
         console.log("Created Spot Light Pass variant for: " + Array.from(flagsCopy.values()))
         return shader
     }
 
     static createShaderVariantWithFlags(label: string, flags: Set<string>, materialBindGroupLayouts: Map<number, GPUBindGroupLayout>, 
-        depthstencil?: GPUDepthStencilState, blending?:GPUBlendState, vertexShaderSrc?:string, fragShaderSrc?:string){
+        depthstencil?: GPUDepthStencilState, fragmentTargets?: Iterable<GPUColorTargetState>, vertexShaderSrc?:string, fragShaderSrc?:string){
         const hash = stringHash(label + Array.from(flags.values()))
 
         if (this.shaderCache.has(hash))
@@ -127,16 +133,16 @@ export class ShaderLibrary {
         if(!fragShaderSrc)
             fragShaderSrc = standardFragShaderSrc
 
-        const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, depthstencil, bindgroupLayouts, blending)
+        const renderPipeline = this.createPipelineWithFlags(label, flags, vertexShaderSrc, fragShaderSrc, depthstencil, bindgroupLayouts, fragmentTargets)
 
         const shader = new Shader(hash, renderPipeline)
         this.shaderCache.set(hash, shader)
         return shader
     }
 
-    static getShadowShader(): Shader {
+    static getShadowShader(lighType:LightType): Shader {
 
-        const label = "OBI Shadow Shader"
+        const label = "OBI Shadow Shader: " + LightType[lighType]
         const hash = stringHash(label)
 
         if (this.shaderCache.has(hash))
@@ -151,9 +157,19 @@ export class ShaderLibrary {
         const emtpyFlags = new Set<string>()
 
         const modelBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardModelBindGroupEntries(emtpyFlags) })
-        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: Shader.getStandardSceneBindGroupEntries(emtpyFlags) })
+        let sceneBindGroupEntries = Shader.getStandardSceneBindGroupEntries(emtpyFlags)
 
-        const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowShaderSrc, undefined, depthStencil, [modelBindGroupLayout, sceneBindGroupLayout])
+        let shadowFragShaderSrc = undefined
+        let colorTargets: Iterable<GPUColorTargetState>= undefined
+        if(lighType == LightType.Point){
+            shadowFragShaderSrc = shadowCustomDepthFragSrc
+            sceneBindGroupEntries.push(Shader.DEFAULT_LIGHT_BINDGROUPLAYOUTENTRY)
+            colorTargets = []
+        } 
+        const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: sceneBindGroupEntries })
+
+        const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowVertShaderSrc, shadowFragShaderSrc, depthStencil, 
+            [modelBindGroupLayout, sceneBindGroupLayout], colorTargets)
         console.log("Created Shadow Shader")
 
         const shader = new Shader(hash, renderPipeline)
@@ -162,10 +178,10 @@ export class ShaderLibrary {
     }
 
     static createPipelineWithFlags(label: string, flags: Set<string>, vertexShaderSrc?: string, fragmentShaderSrc?: string, 
-        depthStencil?: GPUDepthStencilState, bindgroupLayouts?: Iterable<GPUBindGroupLayout>, blending?: GPUBlendState) 
+        depthStencil?: GPUDepthStencilState, bindgroupLayouts?: Iterable<GPUBindGroupLayout>, fragmentTargets?: Iterable<GPUColorTargetState>) 
         {
         const hasVertexState = !!vertexShaderSrc
-        const hasFragmentState = !!fragmentShaderSrc
+        const hasFragmentState = !!fragmentTargets && !!fragmentShaderSrc
 
         let vertexState: GPUVertexState = undefined
         if (hasVertexState) {
@@ -185,12 +201,7 @@ export class ShaderLibrary {
                     code: preprocessShader(fragmentShaderSrc, flags),
                 }),
                 entryPoint: 'main',
-                targets: [
-                    {
-                        format: OBI.format,
-                        blend: blending
-                    }
-                ]
+                targets: fragmentTargets
             }
         }
 
@@ -206,7 +217,7 @@ export class ShaderLibrary {
             primitive: {
                 topology: 'triangle-list',
                 // Culling backfaces pointing away from the camera
-                cullMode: 'back'
+                //cullMode: 'back'
             },
             // Enable depth testing since we have z-level positions
             // Fragment closest to the camera is rendered in front
