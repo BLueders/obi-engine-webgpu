@@ -150,35 +150,35 @@ export default class Scene {
             }
         })
 
-        // Z-ONLY LIGHTING PRE PASS
-        // const zonlyDescriptor: GPURenderPassDescriptor = {
-        //     colorAttachments: [],
-        //     depthStencilAttachment: {
-        //         view: camera.depthMapView,
-        //         depthClearValue: 1.0,
-        //         depthLoadOp: 'clear',
-        //         depthStoreOp: 'store',
-        //         stencilLoadOp: 'clear',
-        //         stencilStoreOp: 'store'
-        //     }
-        // }
+        //Z-ONLY LIGHTING PRE PASS
+        const zonlyDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [],
+            depthStencilAttachment: {
+                view: camera.depthMapView,
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+                stencilLoadOp: 'clear',
+                stencilStoreOp: 'store'
+            }
+        }
 
-        // const zonlyPassEndcoder = commandEncoder.beginRenderPass(zonlyDescriptor)
+        const zonlyPassEndcoder = commandEncoder.beginRenderPass(zonlyDescriptor)
 
-        // this.materials.forEach((meshes, material) => {
-        //     zonlyPassEndcoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Z_only).renderPipeline)
-        //     meshes.forEach((models, mesh) => {
-        //         // set vertex
-        //         zonlyPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
-        //         zonlyPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
-        //         models.forEach(model => {
-        //             zonlyPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
-        //             zonlyPassEndcoder.setBindGroup(1, this.sceneRessources.bindGroupUnLit)
-        //             zonlyPassEndcoder.drawIndexed(model.mesh.vertexCount)
-        //         })
-        //     })
-        // })
-        // zonlyPassEndcoder.end()
+        this.materials.forEach((meshes, material) => {
+            zonlyPassEndcoder.setPipeline(material.renderPassMap.get(RenderPassType.Opaque_Z_only).renderPipeline)
+            meshes.forEach((models, mesh) => {
+                // set vertex
+                zonlyPassEndcoder.setVertexBuffer(0, mesh.vertexBuffer)
+                zonlyPassEndcoder.setIndexBuffer(mesh.indexBuffer, "uint16")
+                models.forEach(model => {
+                    zonlyPassEndcoder.setBindGroup(0, model.shadowPassBindGroup)
+                    zonlyPassEndcoder.setBindGroup(1, this.sceneRessources.bindGroupUnLit)
+                    zonlyPassEndcoder.drawIndexed(model.mesh.vertexCount)
+                })
+            })
+        })
+        zonlyPassEndcoder.end()
 
         // Ambient only pass (including Z prepass and stencil for skybox)
         const ambientOnlyDescriptor: GPURenderPassDescriptor = {
@@ -373,7 +373,7 @@ class SceneRessources {
         // create scene uniform buffers
         const cameraUniformBufferSize = 4 * 4 * 4 + // 4 x 4 float32 view matrix
             4 * 4 * 4 + // 4 x 4 float32 projection matrix
-            3 * 4      // 3 * float32 camera position
+            4 * 4      // 3 * float32 camera position but has to be 4x4bytes for buffer size
         this.cameraUniformF32Array = new Float32Array(cameraUniformBufferSize / 4)
         this.cameraUniformBuffer = OBI.device.createBuffer({
             label: 'GPUBuffer Camera Data',
@@ -488,7 +488,7 @@ class LightRessource {
 
         const shadowCameraUniformBufferSize = 4 * 4 * 4 + // 4 x 4 float32 view matrix
             4 * 4 * 4 + // 4 x 4 float32 projection matrix
-            3 * 4       // 3 * float32 camera position
+            4 * 4       // 3 * float32 camera position but has to be 4x4bytes for buffer size
         this.shadowCameraUniformF32Array = new Float32Array(shadowCameraUniformBufferSize / 4)
         if (light.type == LightType.Directional || light.type == LightType.Spot) {
             this.shadowCameraUniformBuffers = [OBI.device.createBuffer({

@@ -60,7 +60,7 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     // sample nearest 9 texels to smooth result
     var shadow : f32 = 0.0;
     let size = f32(textureDimensions(shadowMap).x);
-    var bias = max(0.01 * (1.0 - dot(normal, -dirDir.xyz)), 0.005); 
+    var bias = max(0.005 * (1.0 - dot(normal, -dirDir.xyz)), 0.001); 
     
     for (var y : i32 = -1 ; y <= 1 ; y = y + 1) {
         for (var x : i32 = -1 ; x <= 1 ; x = x + 1) {

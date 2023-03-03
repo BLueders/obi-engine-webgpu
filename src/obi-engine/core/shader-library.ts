@@ -169,7 +169,7 @@ export class ShaderLibrary {
         const sceneBindGroupLayout = OBI.device.createBindGroupLayout({ entries: sceneBindGroupEntries })
 
         const renderPipeline = this.createPipelineWithFlags(label, emtpyFlags, shadowVertShaderSrc, shadowFragShaderSrc, depthStencil, 
-            [modelBindGroupLayout, sceneBindGroupLayout], colorTargets)
+            [modelBindGroupLayout, sceneBindGroupLayout], colorTargets, "none")
         console.log("Created Shadow Shader")
 
         const shader = new Shader(hash, renderPipeline)
@@ -178,7 +178,7 @@ export class ShaderLibrary {
     }
 
     static createPipelineWithFlags(label: string, flags: Set<string>, vertexShaderSrc?: string, fragmentShaderSrc?: string, 
-        depthStencil?: GPUDepthStencilState, bindgroupLayouts?: Iterable<GPUBindGroupLayout>, fragmentTargets?: Iterable<GPUColorTargetState>) 
+        depthStencil?: GPUDepthStencilState, bindgroupLayouts?: Iterable<GPUBindGroupLayout>, fragmentTargets?: Iterable<GPUColorTargetState>, cullMode?: GPUCullMode) 
         {
         const hasVertexState = !!vertexShaderSrc
         const hasFragmentState = !!fragmentTargets && !!fragmentShaderSrc
@@ -209,6 +209,9 @@ export class ShaderLibrary {
             depthStencil = Shader.DEFAULT_DEPTHSTENCIL_STATE
         }
 
+        if(!cullMode){
+            cullMode = 'back'
+        }
         const pipeline = OBI.device.createRenderPipeline({
             label: label + Array.from(flags.values()),
             layout: OBI.device.createPipelineLayout({ label: "Pipeline Layout for: " + label, bindGroupLayouts: bindgroupLayouts }),
@@ -217,13 +220,13 @@ export class ShaderLibrary {
             primitive: {
                 topology: 'triangle-list',
                 // Culling backfaces pointing away from the camera
-                //cullMode: 'back'
+                cullMode: cullMode
             },
             // Enable depth testing since we have z-level positions
             // Fragment closest to the camera is rendered in front
             depthStencil: depthStencil
         } as GPURenderPipelineDescriptor)
-        console.log("Total compiled pipelines: " + ShaderLibrary.shaderCache.size)
+        console.log("Compliled: " + label + ". Total: " + ShaderLibrary.shaderCache.size)
         return pipeline
     }
 }
