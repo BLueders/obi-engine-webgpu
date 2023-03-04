@@ -164,9 +164,7 @@ export default class Shader {
             format: OBI.format,
             blend: Shader.DEFAULT_ADDITIVE_LIGHT_BLENDSTATE,
         } as GPUColorTargetState
-        return [
-            state
-        ]
+        return [state]
     }
 
     static getStandardModelBindGroupEntries(flags: Set<string>) {
