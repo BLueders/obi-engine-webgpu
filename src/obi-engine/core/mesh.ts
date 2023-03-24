@@ -196,7 +196,7 @@ export default class Mesh {
         return tangentData
     }
 
-    static createFromOBJFile(gl: WebGL2RenderingContext, name: string, path: string) {
+    static createFromOBJFile(name: string, path: string, flipUVy:boolean = true) {
         if (Mesh.cache.has(name)) {
             return Mesh.cache.get(name)
         }
@@ -206,7 +206,16 @@ export default class Mesh {
         OBJLoader.loadMeshAJAX(path,
             function (objData: { indices: number[]; vertices: number[]; normals: number[]; textureCoordinates: number[] }) {
 
-                let tempMesh = new Mesh("tempObjModel",
+                //flip Y UV
+                if(flipUVy){
+                    objData.textureCoordinates.forEach((value, index) => {
+                        if((index+1)%2===0){
+                            objData.textureCoordinates[index]=1-value
+                        }
+                    })
+                }
+
+                let tempMesh = new Mesh("tempObjModel-"+name,
                     objData.indices,
                     objData.vertices,
                     objData.normals,
@@ -214,10 +223,6 @@ export default class Mesh {
                 let realMesh = Mesh.cache.get(name)
 
                 Object.assign(realMesh, tempMesh)
-                //  for(let property in tempMesh){
-                //      realMesh[property] = tempMesh[property]
-                //  }
-
             },
             function (error: string) { console.error(error) }
         )
