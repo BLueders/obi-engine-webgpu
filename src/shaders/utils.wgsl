@@ -20,7 +20,7 @@ struct VertexIn {
 struct Scene {
     viewMatrix : mat4x4<f32>,
     projectionMatrix : mat4x4<f32>,
-    viewPosition : vec3<f32>
+    viewPosition : vec4<f32>
 };
 
 struct Model {

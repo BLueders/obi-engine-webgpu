@@ -173,7 +173,7 @@ export class OrbiterCameraController {
         this.camera = camera;
         this.target = target || vec3.create();
         this.distance = distance || 5;
-        this.zoomSpeed = zoomSpeed || 500;
+        this.zoomSpeed = zoomSpeed || 100;
         this.rotationSpeed = rotationSpeed || 200;
         this.movementSpeed = movementSpeed || 10;
         this.pitch = startingPitch || -25

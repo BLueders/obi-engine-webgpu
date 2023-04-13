@@ -175,7 +175,7 @@ export default class Environment {
             // Fragment closest to the camera is rendered in front
             depthStencil: {
                 depthWriteEnabled: false,
-                //depthCompare: 'less',
+                depthCompare: 'less',
                 format: 'depth24plus-stencil8',
                 stencilFront: {
                    compare: 'greater-equal',
