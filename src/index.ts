@@ -13,6 +13,7 @@ import Environment from "./obi-engine/core/environment";
 import { Material } from "./obi-engine/core/material";
 import * as dat from 'dat.gui';
 import Stats from './obi-engine/utils/stats.js';
+import Mesh from "./obi-engine/core/mesh";
 
 var g_guiData = {
     lightPosX: 0,
@@ -71,12 +72,25 @@ async function run() {
     Input.initialize(OBI.context.canvas as HTMLCanvasElement)
 
     const controller = new OrbiterCameraController(OBI.context.canvas as HTMLCanvasElement, scene.mainCamera)
+    controller.distance = 30
 
     const mat = new StandardMaterial(vec4.fromValues(1, 1, 1, 1))
     mat.setAlbedoMap(albedoMap)
     mat.lighting = Lighting.BlinnPhong
     mat.receivesShadows = true
     mat.castShadows = true
+
+
+    const helmet_albedo = await Texture.loadAsync("./assets/helmet/helmet_albedo.jpg")
+    const helmet_normal = await Texture.loadAsync("./assets/helmet/helmet_normal.jpg")
+    const helmetMat = new StandardMaterial(vec4.fromValues(1,1,1,1))
+    helmetMat.setAlbedoMap(helmet_albedo)
+    helmetMat.setNormalMap(helmet_normal)
+    helmetMat.lighting = Lighting.BlinnPhong
+    helmetMat.receivesShadows = true
+    helmetMat.castShadows = true
+    const helmet = new Model(Mesh.createFromOBJFile("helmet", "./assets/helmet/helmet.obj"), helmetMat, vec3.fromValues(0,8,0), quat.create(), vec3.fromValues(3,3,3))
+    scene.addModel(helmet)
 
     const plane = new Model(Primitives.getPlaneMesh(20, 20), mat, vec3.fromValues(0, -0.5, 0), quat.create(), vec3.fromValues(40, 1, 40))
     scene.addModel(plane)
@@ -153,7 +167,8 @@ async function run() {
 
         const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
 
-        const NUM_MODELS = 360
+        const NUM_MODELS = 40
+        const SPACING = 10
         const NUM_MATERIALS = 1
 
         const mat = new StandardMaterial(vec4.fromValues(1, 1, 1, 1))
@@ -166,7 +181,7 @@ async function run() {
         const numRows = Math.ceil(Math.sqrt(NUM_MODELS));
         for (let col = 0; col < numRows; col++) {
             for (let row = 0; row < numRows; row++) {
-                const pos = vec3.fromValues(row*4 - numRows*2, 0, col*4 - numRows*2)
+                const pos = vec3.fromValues(row*SPACING - numRows*SPACING/2, 0, col*SPACING - numRows*SPACING/2)
                 const scale = vec3.fromValues(Math.random()*2+0.1, Math.random()*2+0.1, Math.random()*2+0.1)
                 const model = new Model(meshes[Math.floor(Math.random()*meshes.length)], mat, pos, quat.create(), scale)
                 scene.addModel(model)
@@ -175,12 +190,12 @@ async function run() {
     }
 
     function makeLights(){
-        const NUM_LIGHTS = 4
+        const NUM_LIGHTS = 1
         const lights = new Array(NUM_LIGHTS);
         for (let index = 0; index < NUM_LIGHTS; index++) {
             const lightPosition = vec3.fromValues(Math.random()*40-20, 3, Math.random()*40-20)
             const pointLight = new Light(LightType.Point, lightPosition)
-            pointLight.range = 20
+            pointLight.range = 40
             pointLight.intensity = 1
             pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
             pointLight.enableShadows()

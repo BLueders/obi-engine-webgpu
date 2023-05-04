@@ -38,7 +38,7 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
     var dirDir = lightData.direction.xyz;
     var dirColor = lightData.color.rgb;
 
-    var viewDir = normalize(scene.viewPosition - in.worldPosition.xyz);
+    var viewDir = normalize(scene.viewPosition.xyz - in.worldPosition.xyz);
 
     var lightResult = vec3(0.0, 0.0, 0.0);
     // ambient
@@ -115,7 +115,7 @@ fn main(in: VertexOut) -> @location(0) vec4<f32> {
 
 //    gamma correction
     finalColor = finalColor / (finalColor + vec3<f32>(1.0));
-    finalColor = pow(finalColor, vec3<f32>(1.0/2.2));  
+    finalColor = pow(finalColor, vec3<f32>(1.0/2.2));
 
    return vec4<f32>(finalColor,color.a);
 }
