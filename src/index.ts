@@ -76,6 +76,7 @@ async function run() {
 
     const mat = new StandardMaterial(vec4.fromValues(1, 1, 1, 1))
     mat.setAlbedoMap(albedoMap)
+    //mat.setNormalMap(normalMap)
     mat.lighting = Lighting.BlinnPhong
     mat.receivesShadows = true
     mat.castShadows = true
@@ -148,9 +149,11 @@ async function run() {
         scene.draw()
         
         for (let index = 0; index < lights.length; index++) {
-            const light:Light = lights[index];
+            const light:Light = lights[index].light
             light.transform.position[0] += Math.sin(performance.now() / 1300 + index)*0.2
             light.transform.position[2] += Math.cos(performance.now() / 1700 - index)*0.2
+            const debugSphere = lights[index].debugSphere
+            vec3.copy(debugSphere.transform.position, light.transform.position)
         }
 
         stats.fps.update();
@@ -165,7 +168,7 @@ async function run() {
         const albedoMap = await Texture.loadAsync("./assets/medieval-cobblestone-albedo.png")
         const normalMap = await Texture.loadAsync("./assets/medieval-cobblestone-normal.png")
 
-        const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getPyramidMesh(), Primitives.getCylinderMesh()]
+        const meshes = [Primitives.getCubeMesh(), Primitives.getSphereMesh(), Primitives.getCylinderMesh()]
 
         const NUM_MODELS = 40
         const SPACING = 10
@@ -182,7 +185,7 @@ async function run() {
         for (let col = 0; col < numRows; col++) {
             for (let row = 0; row < numRows; row++) {
                 const pos = vec3.fromValues(row*SPACING - numRows*SPACING/2, 0, col*SPACING - numRows*SPACING/2)
-                const scale = vec3.fromValues(Math.random()*2+0.1, Math.random()*2+0.1, Math.random()*2+0.1)
+                const scale = vec3.fromValues(Math.random()*2+2, Math.random()*2+2, Math.random()*2+2)
                 const model = new Model(meshes[Math.floor(Math.random()*meshes.length)], mat, pos, quat.create(), scale)
                 scene.addModel(model)
             }
@@ -190,17 +193,26 @@ async function run() {
     }
 
     function makeLights(){
-        const NUM_LIGHTS = 1
+        const NUM_LIGHTS = 4
         const lights = new Array(NUM_LIGHTS);
         for (let index = 0; index < NUM_LIGHTS; index++) {
-            const lightPosition = vec3.fromValues(Math.random()*40-20, 3, Math.random()*40-20)
+            const lightPosition = vec3.fromValues(Math.random()*80-40, 10, Math.random()*80-40)
             const pointLight = new Light(LightType.Point, lightPosition)
             pointLight.range = 40
             pointLight.intensity = 1
             pointLight.color = vec3.fromValues(Math.random(), Math.random(), Math.random())
             pointLight.enableShadows()
             scene.addLight(pointLight)
-            lights[index] = pointLight;
+
+            const lightSphere = new Model(Primitives.getSphereMesh(), mat, lightPosition, quat.create(), vec3.fromValues(0.2, 0.2, 0.2))
+            const lightSphereMat = new StandardMaterial(vec4.fromValues(pointLight.color[0], pointLight.color[1], pointLight.color[2], 1))
+            lightSphereMat.lighting = Lighting.BlinnPhong
+            lightSphereMat.receivesShadows = false
+            lightSphereMat.castShadows = false
+            lightSphere.material = lightSphereMat
+            scene.addModel(lightSphere)
+
+            lights[index] = {light:pointLight, debugSphere:lightSphere};
         }
         return lights;
     }

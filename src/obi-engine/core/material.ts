@@ -33,7 +33,7 @@ export class Material{
         this.uniforms = new Map<number, Map<number, Uniform>>()
         this.uniformLayouts = new Map<number, GPUBindGroupLayout>()
         this.uniformBindGroups = new Map<number, GPUBindGroup>()
-        this.flags.add(Shader.CAST_SHADOWS_FLAG)
+        //this.flags.add(Shader.CAST_SHADOWS_FLAG)
         this.status = MaterialStatus.NeedsUpdate
 
         this.renderPassMap = new Map<RenderPassType, Shader>()
