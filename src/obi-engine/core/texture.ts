@@ -19,7 +19,7 @@ export class Texture {
 
         const texture = new Texture(bitmap.width, bitmap.height)
 
-        const mipLevels = 1; //Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) + 1
+        const mipLevels = Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) + 1
 
         const textureDescriptor = {
             size: textureSize,
@@ -40,8 +40,8 @@ export class Texture {
 
         /* -- create mipmap for texture -- */
         // FIXME: Mipmap generation seems to be broken
-        // const mipmapGenerator = new WebGPUMipmapGenerator(OBI.device)
-        // mipmapGenerator.generateMipmap(texture.gpuTexture, textureDescriptor)
+        const mipmapGenerator = new WebGPUMipmapGenerator(OBI.device)
+        mipmapGenerator.generateMipmap(texture.gpuTexture, textureDescriptor)
 
         return texture;
     }
